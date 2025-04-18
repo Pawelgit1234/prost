@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, ForeignKey, Table, Column
@@ -6,8 +7,10 @@ from sqlalchemy import String, ForeignKey, Table, Column
 from src.database import Base
 from src.models import TimestampMixin
 from src.chats.enums import ChatType, MessageType
-from src.auth.models import UserModel
-from src.folders.models import FolderModel
+
+if TYPE_CHECKING:
+    from src.auth.models import UserModel
+    from src.folders.models import FolderModel
 
 user_chat_association_table = Table(
     'user_chat_association_table',
@@ -29,7 +32,7 @@ class ChatModel(Base, TimestampMixin):
     users: Mapped[list["UserModel"]] = relationship(
         secondary=user_chat_association_table, back_populates='chats'
     )
-    folder_id = Mapped[int] = mapped_column(ForeignKey('folders.id'))
+    folder_id: Mapped[int] = mapped_column(ForeignKey('folders.id'))
     folder: Mapped['FolderModel'] = relationship(back_populates='chats')
 
 class MessageModel(Base, TimestampMixin):

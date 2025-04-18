@@ -1,4 +1,6 @@
 import os
 
-DATABASE_URL = f'postgresql+asyncpg://{os.environ['DB_USERNAME']}:{os.environ['DB_PASSWORD']} \
-                @{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}'
+DATABASE_URL = (
+    f"postgresql+asyncpg://{os.environ['DB_USERNAME']}:"
+    f"{os.environ['DB_PASSWORD']}@db:5432/{os.environ['DB_NAME']}"
+)

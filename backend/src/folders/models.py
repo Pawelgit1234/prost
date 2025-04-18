@@ -1,12 +1,15 @@
 from uuid import UUID
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, ForeignKey
 
 from src.database import Base
 from src.models import TimestampMixin
-from src.auth.models import UserModel
-from src.chats.models import ChatModel
+
+if TYPE_CHECKING:
+    from src.auth.models import UserModel
+    from src.chats.models import ChatModel
 
 class FolderModel(Base, TimestampMixin):
     __tablename__ = 'folders'

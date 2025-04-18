@@ -1,6 +1,6 @@
 FROM python:3.13-slim
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 COPY . .
-CMD ["sh", "-c", "alembic upgrade head && python3 -m src.main"]
+CMD ["python3", "-m", "src.main"]
