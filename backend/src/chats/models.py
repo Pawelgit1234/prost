@@ -35,6 +35,9 @@ class ChatModel(Base, TimestampMixin):
     folder_id: Mapped[int] = mapped_column(ForeignKey('folders.id'))
     folder: Mapped['FolderModel'] = relationship(back_populates='chats')
 
+# I don`t know why, without this workaround it just do not work
+from src.folders.models import FolderModel
+
 class MessageModel(Base, TimestampMixin):
     __tablename__ = 'messages'
 
