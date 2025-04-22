@@ -1,3 +1,6 @@
+include .env
+export $(shell sed 's/=.*//' .env)
+
 # Migrations
 migrate:
 	docker compose exec backend alembic revision --autogenerate -m "$(name)" 

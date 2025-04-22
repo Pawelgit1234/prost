@@ -1,9 +1,13 @@
 from datetime import datetime, timedelta, timezone
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 import jwt
 from passlib.context import CryptContext
+import aiosmtplib
 
-from src.settings import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from src.settings import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, \
+    SMTP_SERVER, SMTP_PORT, SENDER_EMAIL, SENDER_EMAIL_PASSWORD
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -23,3 +27,18 @@ def create_acces_token(
 
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+async def send_html_email(to_email: str, subject: str, text: str) -> None:
+    msg = MIMEMultipart()
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(text, 'html'))
+    
+    await aiosmtplib.send(
+        msg,
+        hostname=SMTP_SERVER,
+        port=SMTP_PORT,
+        username=SENDER_EMAIL,
+        password=SENDER_EMAIL_PASSWORD
+    )

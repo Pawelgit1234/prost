@@ -1,15 +1,15 @@
 from typing import Annotated
 import logging
-from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.auth.utils import create_acces_token
-from src.auth.schemas import UserSchema, TokenSchema
-from src.auth.services import authenticate_user
+from src.auth.utils import create_acces_token, send_html_email
+from src.auth.schemas import TokenSchema, UserRegisterSchema
+from src.auth.services import authenticate_user, create_user, create_email_activation_token
 from src.database import get_db
+from src.settings import HOST
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +30,45 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-    access_token = create_acces_token({'sub': user.username})
     logging.info(f'{user.username} logged in')
-
+    access_token = create_acces_token({'sub': user.username})
     return TokenSchema(access_token=access_token, token_type='bearer')
 
 @router.post('/register')
-async def register():
+async def register(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
+    user_data: UserRegisterSchema
+):
+    user = await create_user(db, user_data)
+    email_activaton_token = await create_email_activation_token(db, user)
+    
+    # email sending is a very long operation, so I putted it in background_tasks
+    activation_link = HOST + '/auth/activation/' + str(email_activaton_token.uuid)
+    background_tasks.add_task(
+        send_html_email,
+        user_data.email,
+        'Email activation',
+        f"""
+            Hello, thank you for registering on our site.
+            Here is your email activation
+            <a href={activation_link}>link</a>.
+        """
+    )
+    
+    logging.info(f'{user.username} registration completed')
+    access_token = create_acces_token({'sub': user.username})
+    return TokenSchema(access_token=access_token, token_type='bearer')
+
+@router.get('/activation/{email_activation_token}')
+async def activate(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    email_activation_token: str
+):
+    pass
+
+@router.post('/refresh_token')
+async def get_refresh_token(
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     pass

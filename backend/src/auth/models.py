@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String
+from sqlalchemy import String, ForeignKey
 
 from src.database import Base
 from src.models import TimestampMixin, uuid_type
@@ -20,10 +20,11 @@ class UserModel(Base, TimestampMixin):
     first_name: Mapped[str] = mapped_column(String(32))
     last_name: Mapped[str] = mapped_column(String(32))
     username: Mapped[str] = mapped_column(String(16), unique=True, index=True)
-    description: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(String(100), nullable=True)
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
-    password: Mapped[str]
-    avatar: Mapped[str]
+    password: Mapped[str] = mapped_column(String(60))
+    # avatar will be set later in settings
+    avatar: Mapped[str] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(default=False)
 
     chats: Mapped[list["ChatModel"]] = relationship(
@@ -31,3 +32,13 @@ class UserModel(Base, TimestampMixin):
     )
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
     folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
+    email_activation_token: Mapped["EmailActivationTokenModel"] = relationship(back_populates="user")
+
+class EmailActivationTokenModel(Base, TimestampMixin):
+    __tablename__ = 'email_activation_tokens'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uuid: Mapped[uuid_type]
+    
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True)
+    user: Mapped["UserModel"] = relationship(back_populates='email_activation_token')

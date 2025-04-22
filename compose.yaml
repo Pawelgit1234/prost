@@ -9,6 +9,8 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
+      - SENDER_EMAIL=${SENDER_EMAIL}
+      - SENDER_EMAIL_PASSWORD=${SENDER_EMAIL_PASSWORD}
     ports:
       - 8000:8000
     volumes:
@@ -27,6 +29,19 @@ services:
       - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql/data
+    
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - 1234:80
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
 
 volumes:
   pgdata:
+  pgadmin_data:

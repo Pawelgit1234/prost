@@ -1,6 +1,6 @@
 import re
 
-from pydantic import BaseModel, Field, EmailStr, field_validator 
+from pydantic import BaseModel, Field, EmailStr, field_validator
 
 class UserRegisterSchema(BaseModel):
     first_name: str = Field(max_length=32)
@@ -22,10 +22,7 @@ class UserRegisterSchema(BaseModel):
         if not re.search(r'[^A-Za-z0-9]', value):
             raise ValueError('Password must contain at least one special character.')
         return value
-
-class UserSchema(UserRegisterSchema):
-    is_active: bool
-
+    
 class TokenSchema(BaseModel):
     access_token: str
     token_type: str
