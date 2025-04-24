@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.utils import create_acces_token, send_html_email
 from src.auth.schemas import TokenSchema, UserRegisterSchema
-from src.auth.services import authenticate_user, create_user, create_email_activation_token
+from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
+    activate_user
+from src.auth.models import UserModel
 from src.database import get_db
+from src.dependencies import get_current_user
 from src.settings import HOST
 
 logger = logging.getLogger(__name__)
@@ -63,9 +66,11 @@ async def register(
 @router.get('/activation/{email_activation_token}')
 async def activate(
     db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[UserModel, Depends(get_current_user)],
     email_activation_token: str
 ):
-    pass
+    activate_user(db, email_activation_token, user)
+    return {'success': True}
 
 @router.post('/refresh_token')
 async def get_refresh_token(
