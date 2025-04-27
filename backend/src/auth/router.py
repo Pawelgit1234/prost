@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.auth.utils import create_acces_token, send_html_email
-from src.auth.schemas import TokenSchema, UserRegisterSchema
+from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
+    decode_jwt_token
+from src.auth.schemas import TokenSchema, UserRegisterSchema, RefreshTokenSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
     activate_user
 from src.auth.models import UserModel
@@ -34,8 +35,13 @@ async def login(
         )
 
     logging.info(f'{user.username} logged in')
-    access_token = create_acces_token({'sub': user.username})
-    return TokenSchema(access_token=access_token, token_type='bearer')
+    access_token = create_access_token({'sub': user.username})
+    refresh_token = create_refresh_token({'sub': user.username})
+    return TokenSchema(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type='bearer'
+    )
 
 @router.post('/register')
 async def register(
@@ -60,8 +66,13 @@ async def register(
     )
     
     logging.info(f'{user.username} registration completed')
-    access_token = create_acces_token({'sub': user.username})
-    return TokenSchema(access_token=access_token, token_type='bearer')
+    access_token = create_access_token({'sub': user.username})
+    refresh_token = create_refresh_token({'sub': user.username})
+    return TokenSchema(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type='bearer'
+    )
 
 @router.get('/activation/{email_activation_token}')
 async def activate(
@@ -73,7 +84,12 @@ async def activate(
     return {'success': True}
 
 @router.post('/refresh_token')
-async def get_refresh_token(
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    pass
+async def get_refresh_token(token: RefreshTokenSchema):
+    token_data = decode_jwt_token(token.refresh_token)
+
+    access_token = create_access_token({'sub': token_data.username})
+    return TokenSchema(
+        access_token=access_token,
+        refresh_token=token.refresh_token,
+        token_type='bearer'
+    )

@@ -25,7 +25,11 @@ class UserRegisterSchema(BaseModel):
     
 class TokenSchema(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 class TokenDataSchema(BaseModel):
     username: str
+
+class RefreshTokenSchema(BaseModel):
+    refresh_token: str
