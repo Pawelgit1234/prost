@@ -11,7 +11,6 @@ from src.auth.services import get_user_by_username_or_email
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
-
 async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
     token: Annotated[str, Depends(oauth2_scheme)]

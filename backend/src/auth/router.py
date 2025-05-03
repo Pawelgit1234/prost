@@ -1,23 +1,79 @@
 from typing import Annotated
+from uuid import uuid4
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
+from authlib.integrations.starlette_client import OAuth
 
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
     decode_jwt_token
 from src.auth.schemas import TokenSchema, UserRegisterSchema, RefreshTokenSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
-    activate_user
+    activate_user, get_user_by_username_or_email
 from src.auth.models import UserModel
 from src.database import get_db
 from src.dependencies import get_current_user
-from src.settings import HOST
+from src.services import save_to_db
+from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/auth', tags=['auth'])
+
+oauth = OAuth()
+oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    access_token_url='https://oauth2.googleapis.com/token',
+    access_token_params=None,
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    authorize_params=None,
+    api_base_url='https://www.googleapis.com/oauth2/v1/',
+    client_kwargs={'scope': 'openid email profile'},
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+)
+
+@router.get('/google/login')
+async def google_login(request: Request):
+    redirect_url = request.url_for('google_callback')
+    return await oauth.google.authorize_redirect(request, redirect_url)
+
+@router.get('/google/callback')
+async def google_callback(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    request: Request
+):
+    token = await oauth.google.authorize_access_token(request)
+    resp = await oauth.google.get('userinfo', token=token)
+    user_info = resp.json()
+
+    user = await get_user_by_username_or_email(db, user_info['email'])
+
+    if user is None:
+        username = ('_'.join(user_info['name'].split()).lower() + str(uuid4()))[:16]
+        new_user = UserModel(
+            first_name=user_info['given_name'],
+            last_name=user_info['family_name'],
+            username=username,
+            email=user_info['email'],
+            avatar=user_info['picture'],
+            is_active=user_info['verified_email']
+        )
+        user = await save_to_db(db, new_user)
+        logging.info(f'{user.username} registered in by google')
+    else:
+        logging.info(f'{user.username} logged in by google')
+
+    access_token = create_access_token({'sub': user.username})
+    refresh_token = create_refresh_token({'sub': user.username})
+    return TokenSchema(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type='bearer'
+    )
 
 @router.post('/token')
 async def login(
@@ -83,7 +139,7 @@ async def activate(
     activate_user(db, email_activation_token, user)
     return {'success': True}
 
-@router.post('/refresh_token')
+@router.post('/refresh')
 async def get_refresh_token(token: RefreshTokenSchema):
     token_data = decode_jwt_token(token.refresh_token)
 

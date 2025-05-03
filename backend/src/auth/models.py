@@ -22,7 +22,7 @@ class UserModel(Base, TimestampMixin):
     username: Mapped[str] = mapped_column(String(16), unique=True, index=True)
     description: Mapped[str] = mapped_column(String(100), nullable=True)
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
-    password: Mapped[str] = mapped_column(String(60))
+    password: Mapped[str] = mapped_column(String(60), nullable=True)
     # avatar will be set later in settings
     avatar: Mapped[str] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(default=False)
