@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import uuid
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,11 @@ async def get_email_activation_token(
     db: AsyncSession,
     token: str
 ) -> EmailActivationTokenModel | None:
+    try:
+        token = uuid.UUID(token)
+    except ValueError:
+        return None
+    
     result = await db.execute(
         select(EmailActivationTokenModel).where(
             EmailActivationTokenModel.uuid == token
@@ -67,16 +73,16 @@ async def activate_user(
     db: AsyncSession,
     email_activation_token: str,
     user: UserModel
-) -> None:
+) -> UserModel:
     token_error = HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail='Invalid or expired activation Token'
     )
     
-    token = get_email_activation_token(db, email_activation_token)
+    token = await get_email_activation_token(db, email_activation_token)
     if token is None:
         raise token_error
-    if (token.created_at - datetime.now(timezone.utc)) > timedelta(EMAIL_ACTIVATION_EXPIRE_MINUTES):
+    if (datetime.now(timezone.utc) - token.created_at.replace(tzinfo=timezone.utc)) > timedelta(minutes=EMAIL_ACTIVATION_EXPIRE_MINUTES):
         raise token_error
     if token.user != user:
         raise token_error
@@ -84,3 +90,5 @@ async def activate_user(
     user.is_active = True
     await db.commit()
     await db.delete(token)
+
+    return user
