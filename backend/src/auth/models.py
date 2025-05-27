@@ -5,10 +5,9 @@ from sqlalchemy import String, ForeignKey
 
 from src.database import Base
 from src.models import TimestampMixin, uuid_type
-from src.chats.models import user_chat_association_table
 
 if TYPE_CHECKING:
-    from src.chats.models import ChatModel, MessageModel
+    from src.chats.models import ChatModel, MessageModel, UserChatAssociationModel
     from src.folders.models import FolderModel
 
 class UserModel(Base, TimestampMixin):
@@ -27,8 +26,8 @@ class UserModel(Base, TimestampMixin):
     avatar: Mapped[str] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(default=False)
 
-    chats: Mapped[list["ChatModel"]] = relationship(
-        secondary=user_chat_association_table, back_populates='users'
+    chat_associations: Mapped[list["UserChatAssociationModel"]] = relationship(
+        back_populates='user', cascade='all, delete-orphan'
     )
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
     folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-import uuid
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,13 +24,8 @@ async def get_user_by_username_or_email(
 
 async def get_email_activation_token(
     db: AsyncSession,
-    token: str
+    token: UUID
 ) -> EmailActivationTokenModel | None:
-    try:
-        token = uuid.UUID(token)
-    except ValueError:
-        return None
-    
     result = await db.execute(
         select(EmailActivationTokenModel).where(
             EmailActivationTokenModel.uuid == token
@@ -60,14 +55,14 @@ async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserMo
         email=user_data.email,
         password=get_password_hash(user_data.password)
     )
-    return await save_to_db(db, user)
+    return await save_to_db(db, [user])
 
 async def create_email_activation_token(
     db: AsyncSession,
     user: UserModel
 ) -> EmailActivationTokenModel:
     token = EmailActivationTokenModel(user=user)
-    return await save_to_db(db, token)
+    return await save_to_db(db, [token])
 
 async def activate_user(
     db: AsyncSession,
@@ -88,7 +83,7 @@ async def activate_user(
         raise token_error
     
     user.is_active = True
-    await db.commit()
     await db.delete(token)
+    await db.commit()
 
     return user

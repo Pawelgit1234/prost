@@ -18,6 +18,9 @@ services:
     volumes:
       - ./backend:/app
     command: ["python3", "-m", "src.main"]
+    depends_on:
+      - db
+      - redis
 
   db:
     image: postgres
@@ -43,6 +46,13 @@ services:
       - 1234:80
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+  
+  redis:
+    image: redis
+    container_name: redis
+    restart: always
+    ports:
+      - 6379:6379
 
 volumes:
   pgdata:

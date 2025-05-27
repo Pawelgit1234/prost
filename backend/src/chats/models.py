@@ -1,52 +1,48 @@
-from uuid import UUID
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, ForeignKey, Table, Column
+from sqlalchemy import ForeignKey, String
 
 from src.database import Base
-from src.models import TimestampMixin
-from src.chats.enums import ChatType, MessageType
+from src.models import TimestampMixin, uuid_type
+from src.chats.enums import ChatType
 
 if TYPE_CHECKING:
     from src.auth.models import UserModel
     from src.folders.models import FolderModel
+    from src.messages.models import MessageModel
 
-user_chat_association_table = Table(
-    'user_chat_association_table',
-    Base.metadata,
-    Column('user_id', ForeignKey('users.id'), primary_key=True),
-    Column('chat_id', ForeignKey('chats.id'), primary_key=True)
-)
+class UserChatAssociationModel(Base):
+    __tablename__ = 'user_chat_associations'
+
+    # ids
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    chat_id: Mapped[int] = mapped_column(ForeignKey('chats.id'), primary_key=True)
+
+    # extra fields
+    is_pinned: Mapped[bool] = mapped_column(default=False)
+
+    # relationships
+    user: Mapped['UserModel'] = relationship(back_populates='chat_associations')
+    chat: Mapped['ChatModel'] = relationship(back_populates='user_associations')
 
 class ChatModel(Base, TimestampMixin):
     __tablename__ = 'chats'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    uuid: Mapped[UUID] = mapped_column()
+    uuid: Mapped[uuid_type]
 
+    # for chat and groups
     chat_type: Mapped[ChatType]
-    is_pinned_up: Mapped[bool] = mapped_column(default=False)
+    name: Mapped[str] = mapped_column(String(100))
+    # for groups
+    description: Mapped[str] = mapped_column(String(100), nullable=True)
+    avatar: Mapped[str] = mapped_column(nullable=True) # avatar will be set later in settings
+
 
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="chat")
-    users: Mapped[list["UserModel"]] = relationship(
-        secondary=user_chat_association_table, back_populates='chats'
+    user_associations: Mapped[list["UserChatAssociationModel"]] = relationship(
+        back_populates='chat', cascade='all, delete-orphan'
     )
     folder_id: Mapped[int] = mapped_column(ForeignKey('folders.id'))
     folder: Mapped['FolderModel'] = relationship(back_populates='chats')
-
-# I don`t know why, without this workaround it just do not work
-from src.folders.models import FolderModel
-
-class MessageModel(Base, TimestampMixin):
-    __tablename__ = 'messages'
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    uuid: Mapped[UUID] = mapped_column()
-
-    message_type: Mapped[MessageType]
-
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    user: Mapped["UserModel"] = relationship(back_populates="messages")
-    chat_id: Mapped[int] = mapped_column(ForeignKey("chats.id"))
-    chat: Mapped["ChatModel"] = relationship(back_populates="messages")

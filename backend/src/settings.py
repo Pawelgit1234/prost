@@ -7,6 +7,11 @@ DATABASE_URL = (
     f"{os.environ['DB_PASSWORD']}@db:5432/{os.environ['DB_NAME']}"
 )
 
+REDIS_HOST = 'redis'
+REDIS_PORT = 6379
+REDIS_CACHE_EXPIRE_SECONDS = 60 * 60 # 1 hour
+REDIS_CHATS_KEY = 'chats_{}' # 'chats_{user_uuid}'
+
 SECRET_KEY = os.environ['SECRET_KEY']
 
 GOOGLE_CLIENT_ID=os.environ['GOOGLE_CLIENT_ID']

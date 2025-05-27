@@ -11,6 +11,7 @@ from src.settings import DATABASE_URL
 from src.auth.models import *
 from src.chats.models import *
 from src.folders.models import *
+from src.messages.models import *
 from src.database import Base
 
 config = context.config

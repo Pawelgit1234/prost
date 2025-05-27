@@ -1,5 +1,5 @@
 from typing import Annotated
-from uuid import uuid4
+from uuid import uuid4, UUID
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
@@ -134,9 +134,10 @@ async def register(
 async def activate(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[UserModel, Depends(get_current_user)],
-    email_activation_token: str
+    email_activation_token: UUID
 ):
     activate_user(db, email_activation_token, user)
+    logging.info(f'{user.username} was activated')
     return {'success': True}
 
 @router.post('/refresh')
