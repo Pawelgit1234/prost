@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Annotated
@@ -7,11 +8,11 @@ from fastapi import APIRouter, Depends
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.utils import invalidate_cache
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
-    quit_group_in_db, add_user_to_group_in_db, pin_chat_in_db
+    quit_group_in_db, add_user_to_group_in_db, pin_chat_in_db, get_chat_list
 from src.chats.schemas import CreateChatSchema, ChatSchema
 from src.dependencies import get_active_current_user
-from src.services import invalidate_cache
 from src.auth.models import UserModel
 from src.database import get_db, get_redis
 from src.settings import REDIS_CHATS_KEY, REDIS_CACHE_EXPIRE_SECONDS
@@ -31,12 +32,12 @@ async def get_all_chats(
     if data := await r.get(key):
         return json.loads(data)
 
-    chats = await get_all_chats(db, current_user)
+    chats = await get_chat_list(db, current_user)
     data = {
         'total': len(chats),
-        'items': chats
+        'items': [json.loads(chat.model_dump_json()) for chat in chats] # workaround
     }
-
+    
     await r.set(key, json.dumps(data), REDIS_CACHE_EXPIRE_SECONDS)
     logging.info('Chats were cached')
 
@@ -61,9 +62,11 @@ async def delete_chat(
     chat_uuid: UUID
 ):
     users = await delete_chat_in_db(db, chat_uuid)
-    async for user in users:
-        await invalidate_cache(r, REDIS_CHATS_KEY, user.uuid)
-    
+
+    # is faster
+    tasks = [invalidate_cache(r, REDIS_CHATS_KEY, user.uuid) for user in users]
+    await asyncio.gather(*tasks)
+
     return {'success': True}
 
 # you can quit a group without deleting it

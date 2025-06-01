@@ -22,7 +22,7 @@ async def get_current_user(
     )
 
     token_data = decode_jwt_token(token)
-    user = get_user_by_username_or_email(db, token_data.username)
+    user = await get_user_by_username_or_email(db, token_data.username)
     if user is None:
         raise credentials_exception
     return user

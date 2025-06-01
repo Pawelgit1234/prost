@@ -7,28 +7,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from src.services import save_to_db
+from src.utils import save_to_db
 from src.auth.models import UserModel
 from src.auth.services import get_user_by_username_or_email
 from src.chats.schemas import CreateChatSchema, ChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
+from src.chats.enums import ChatType
 
 logger = logging.getLogger(__name__)
 
 async def get_chat_or_404(db: AsyncSession, chat_uuid: UUID) -> ChatModel:
     result = await db.execute(
-        select(ChatModel).where(ChatModel.uuid == chat_uuid)
+        select(ChatModel)
+        .where(ChatModel.uuid == chat_uuid)
+        .options(selectinload(ChatModel.user_associations).selectinload(UserChatAssociationModel.user))
     )
     chat = result.scalar_one_or_none()
 
     if chat is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, 'Chat not found')
+    
+    return chat
 
 async def get_user_or_404(db: AsyncSession, username: str) -> ChatModel:
-    user = get_user_by_username_or_email(db, username)
+    user = await get_user_by_username_or_email(db, username)
 
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, 'User not found')
+    
+    return user
 
 async def get_chat_list(db: AsyncSession, current_user: UserModel) -> list[ChatSchema]:
     result = await db.execute(
@@ -62,11 +69,23 @@ async def create_chat_in_db(
         name=chat_info.name,
         description=chat_info.group_description,
     )
-    chat_association = UserChatAssociationModel(
+    db.add(chat)
+    
+    chat_assoc = UserChatAssociationModel(
         user=current_user,
         chat=chat
     )
-    chat = await save_to_db(db, [chat, chat_association])[0]
+    db.add(chat_assoc)
+
+    if chat_info.chat_type == ChatType.NORMAL:
+        other_user = await get_user_or_404(db, chat_info.name)
+        other_chat_assoc = UserChatAssociationModel(
+            user=other_user,
+            chat=chat
+        )
+        db.add(other_chat_assoc)
+    
+    await db.commit()
     logger.info(f"Chat '{chat.name}' was created by '{current_user.username}'")
     return chat
 

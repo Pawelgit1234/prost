@@ -4,8 +4,9 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
+from sqlalchemy.orm import selectinload
 
-from src.services import save_to_db
+from src.utils import save_to_db
 from src.settings import EMAIL_ACTIVATION_EXPIRE_MINUTES
 from src.auth.models import UserModel, EmailActivationTokenModel
 from src.auth.schemas import UserRegisterSchema
@@ -27,9 +28,9 @@ async def get_email_activation_token(
     token: UUID
 ) -> EmailActivationTokenModel | None:
     result = await db.execute(
-        select(EmailActivationTokenModel).where(
-            EmailActivationTokenModel.uuid == token
-        )
+        select(EmailActivationTokenModel)
+        .options(selectinload(EmailActivationTokenModel.user))
+        .where(EmailActivationTokenModel.uuid == token)
     )
     return result.scalar_one_or_none()
 
@@ -55,18 +56,18 @@ async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserMo
         email=user_data.email,
         password=get_password_hash(user_data.password)
     )
-    return await save_to_db(db, [user])
+    return (await save_to_db(db, [user]))[0]
 
 async def create_email_activation_token(
     db: AsyncSession,
     user: UserModel
 ) -> EmailActivationTokenModel:
     token = EmailActivationTokenModel(user=user)
-    return await save_to_db(db, [token])
+    return (await save_to_db(db, [token]))[0]
 
 async def activate_user(
     db: AsyncSession,
-    email_activation_token: str,
+    email_activation_token: UUID,
     user: UserModel
 ) -> UserModel:
     token_error = HTTPException(
@@ -79,7 +80,7 @@ async def activate_user(
         raise token_error
     if (datetime.now(timezone.utc) - token.created_at.replace(tzinfo=timezone.utc)) > timedelta(minutes=EMAIL_ACTIVATION_EXPIRE_MINUTES):
         raise token_error
-    if token.user != user:
+    if token.user_id != user.id:
         raise token_error
     
     user.is_active = True

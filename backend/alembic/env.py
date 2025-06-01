@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from src.settings import DATABASE_URL
+from src.messages.models import *
 from src.auth.models import *
 from src.chats.models import *
 from src.folders.models import *
-from src.messages.models import *
 from src.database import Base
 
 config = context.config

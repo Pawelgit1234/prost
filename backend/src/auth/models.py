@@ -7,8 +7,9 @@ from src.database import Base
 from src.models import TimestampMixin, uuid_type
 
 if TYPE_CHECKING:
-    from src.chats.models import ChatModel, MessageModel, UserChatAssociationModel
+    from src.chats.models import UserChatAssociationModel
     from src.folders.models import FolderModel
+    from src.messages.models import MessageModel
 
 class UserModel(Base, TimestampMixin):
     __tablename__ = 'users'
@@ -32,6 +33,10 @@ class UserModel(Base, TimestampMixin):
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
     folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
     email_activation_token: Mapped["EmailActivationTokenModel"] = relationship(back_populates="user")
+
+# I do not know why, but without this it just do not work
+from src.messages.models import MessageModel
+from src.folders.models import FolderModel
 
 class EmailActivationTokenModel(Base, TimestampMixin):
     __tablename__ = 'email_activation_tokens'

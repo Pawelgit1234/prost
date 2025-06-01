@@ -51,7 +51,7 @@ async def test_valid_user_activation(get_db):
 
     user = await create_user(get_db, user_data)
     token = await create_email_activation_token(get_db, user)
-    activated_user = await activate_user(get_db, str(token.uuid), user)
+    activated_user = await activate_user(get_db, token.uuid, user)
 
     assert activated_user.is_active
 
@@ -69,7 +69,7 @@ async def test_invalid_user_activation(get_db):
     user = await create_user(get_db, user_data)
 
     with pytest.raises(HTTPException) as exc_info:
-        await activate_user(get_db, str(uuid.uuid4()), user)
+        await activate_user(get_db, uuid.uuid4(), user)
 
     assert exc_info.value.status_code == 404
     assert 'Invalid or expired activation Token' in exc_info.value.detail

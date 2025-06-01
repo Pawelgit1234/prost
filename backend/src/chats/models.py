@@ -44,5 +44,5 @@ class ChatModel(Base, TimestampMixin):
     user_associations: Mapped[list["UserChatAssociationModel"]] = relationship(
         back_populates='chat', cascade='all, delete-orphan'
     )
-    folder_id: Mapped[int] = mapped_column(ForeignKey('folders.id'))
+    folder_id: Mapped[int] = mapped_column(ForeignKey('folders.id'), nullable=True)
     folder: Mapped['FolderModel'] = relationship(back_populates='chats')

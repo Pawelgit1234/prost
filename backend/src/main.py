@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 import uvicorn
 from starlette.middleware.sessions import SessionMiddleware
@@ -7,11 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from src.routers import main_router
 from src.settings import SECRET_KEY
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 app.include_router(main_router)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 

@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth
 
+from src.utils import save_to_db
+from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
     decode_jwt_token
 from src.auth.schemas import TokenSchema, UserRegisterSchema, RefreshTokenSchema
@@ -15,8 +17,6 @@ from src.auth.services import authenticate_user, create_user, create_email_activ
 from src.auth.models import UserModel
 from src.database import get_db
 from src.dependencies import get_current_user
-from src.services import save_to_db
-from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ async def google_callback(
             avatar=user_info['picture'],
             is_active=user_info['verified_email']
         )
-        user = await save_to_db(db, new_user)
+        user = (await save_to_db(db, [new_user]))[0]
         logging.info(f'{user.username} registered in by google')
     else:
         logging.info(f'{user.username} logged in by google')
@@ -136,7 +136,7 @@ async def activate(
     user: Annotated[UserModel, Depends(get_current_user)],
     email_activation_token: UUID
 ):
-    activate_user(db, email_activation_token, user)
+    await activate_user(db, email_activation_token, user)
     logging.info(f'{user.username} was activated')
     return {'success': True}
 
