@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 
 from src.utils import save_to_db
 from src.settings import EMAIL_ACTIVATION_EXPIRE_MINUTES
@@ -48,15 +49,34 @@ async def authenticate_user(
     return user
 
 async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserModel:
-    user = UserModel(
-        first_name=user_data.first_name,
-        last_name=user_data.last_name,
-        username=user_data.username,
-        description=user_data.description,
-        email=user_data.email,
-        password=get_password_hash(user_data.password)
-    )
-    return (await save_to_db(db, [user]))[0]
+    try:
+        user = UserModel(
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            username=user_data.username,
+            description=user_data.description,
+            email=user_data.email,
+            password=get_password_hash(user_data.password)
+        )
+        return (await save_to_db(db, [user]))[0]
+    except IntegrityError as e:
+        await db.rollback()
+
+        if 'ix_users_email' in str(e.orig):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Email already registered'
+            )
+        elif 'ix_users_username' in str(e.orig):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Username already taken'
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='User registration failed'
+            )
 
 async def create_email_activation_token(
     db: AsyncSession,
