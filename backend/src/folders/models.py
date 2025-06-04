@@ -17,7 +17,8 @@ class FolderModel(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     uuid: Mapped[UUID] = mapped_column()
 
-    name: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(16))
+    position: Mapped[int] = mapped_column(default=0) # folder ordering
 
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     user: Mapped['UserModel'] = relationship(back_populates='folders')
