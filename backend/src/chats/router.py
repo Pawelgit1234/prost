@@ -52,8 +52,7 @@ async def create_chat(
 ):
     chat = await create_chat_in_db(db, current_user, chat_info)
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
-    schema = ChatSchema.model_validate(chat)
-    return schema
+    return ChatSchema.model_validate(chat)
 
 @router.delete('/{chat_uuid}')
 async def delete_chat(

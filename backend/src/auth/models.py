@@ -27,12 +27,14 @@ class UserModel(Base, TimestampMixin):
     avatar: Mapped[str] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(default=False)
 
+    messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
+    folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
+    email_activation_token: Mapped["EmailActivationTokenModel"] = relationship(
+        back_populates="user", uselist=False
+    )
     chat_associations: Mapped[list["UserChatAssociationModel"]] = relationship(
         back_populates='user', cascade='all, delete-orphan'
     )
-    messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
-    folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
-    email_activation_token: Mapped["EmailActivationTokenModel"] = relationship(back_populates="user")
 
 # I do not know why, but without this it just do not work
 from src.messages.models import MessageModel
@@ -44,5 +46,5 @@ class EmailActivationTokenModel(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     uuid: Mapped[uuid_type]
     
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True, unique=True)
     user: Mapped["UserModel"] = relationship(back_populates='email_activation_token')
