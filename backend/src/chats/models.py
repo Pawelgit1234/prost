@@ -15,9 +15,6 @@ if TYPE_CHECKING:
 class UserChatAssociationModel(Base):
     __tablename__ = 'user_chat_associations'
 
-    # extra fields
-    is_pinned: Mapped[bool] = mapped_column(default=False)
-
     # relationships
     user: Mapped['UserModel'] = relationship(back_populates='chat_associations')
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)

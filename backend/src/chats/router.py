@@ -10,38 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.utils import invalidate_cache
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
-    quit_group_in_db, add_user_to_group_in_db, pin_chat_in_db, get_chat_list
+    quit_group_in_db, add_user_to_group_in_db
 from src.chats.schemas import CreateChatSchema, ChatSchema
 from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
 from src.database import get_db, get_redis
-from src.settings import REDIS_CHATS_KEY, REDIS_CACHE_EXPIRE_SECONDS
+from src.settings import REDIS_CHATS_KEY
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/chats', tags=['chats'])
-
-@router.get('/')
-async def get_all_chats(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    r: Annotated[Redis, Depends(get_redis)],
-    current_user: Annotated[UserModel, Depends(get_active_current_user)],
-):
-    
-    key = REDIS_CHATS_KEY.format(current_user.uuid)
-    if data := await r.get(key):
-        return json.loads(data)
-
-    chats = await get_chat_list(db, current_user)
-    data = {
-        'total': len(chats),
-        'items': [json.loads(chat.model_dump_json()) for chat in chats] # workaround
-    }
-    
-    await r.set(key, json.dumps(data), REDIS_CACHE_EXPIRE_SECONDS)
-    logging.info('Chats were cached')
-
-    return data
 
 @router.post('/')
 async def create_chat(
@@ -58,9 +36,10 @@ async def create_chat(
 async def delete_chat(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
     chat_uuid: UUID
 ):
-    users = await delete_chat_in_db(db, chat_uuid)
+    users = await delete_chat_in_db(db, current_user, chat_uuid)
 
     # is faster
     tasks = [invalidate_cache(r, REDIS_CHATS_KEY, user.uuid) for user in users]
@@ -84,21 +63,10 @@ async def quit_group(
 async def add_user_to_group(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
     group_uuid: UUID,
     username: str
 ):
-    added_user = await add_user_to_group_in_db(db, group_uuid, username)
+    added_user = await add_user_to_group_in_db(db, group_uuid, username, current_user)
     await invalidate_cache(r, REDIS_CHATS_KEY, added_user.uuid)
     return {'success': True}
-
-# toggles the 'is_pinned' field
-@router.patch('{chat_uuid}/pin')
-async def pin_chat(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    r: Annotated[Redis, Depends(get_redis)],
-    current_user: Annotated[UserModel, Depends(get_active_current_user)],
-    chat_uuid: UUID
-):
-    is_pinned = await pin_chat_in_db(db, current_user, chat_uuid)
-    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
-    return {'is_pinned': is_pinned}

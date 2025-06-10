@@ -14,6 +14,9 @@ if TYPE_CHECKING:
 class FolderChatAssociationModel(Base):
     __tablename__ = 'folder_chat_associations'
 
+    # extra fields
+    is_pinned: Mapped[bool] = mapped_column(default=False)
+
     # relationships
     folder: Mapped['FolderModel'] = relationship(back_populates='chat_associations')
     folder_id: Mapped[int] = mapped_column(ForeignKey('folders.id'), primary_key=True)
@@ -27,7 +30,7 @@ class FolderModel(Base, TimestampMixin):
     uuid: Mapped[uuid_type]
 
     folder_type: Mapped[FolderType]
-    name: Mapped[str] = mapped_column(String(16))
+    name: Mapped[str] = mapped_column(String(16), nullable=True) # nullable for required types
     position: Mapped[int] = mapped_column(default=0) # folder ordering
 
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))

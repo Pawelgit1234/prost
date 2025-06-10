@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
@@ -12,6 +13,8 @@ from src.settings import EMAIL_ACTIVATION_EXPIRE_MINUTES
 from src.auth.models import UserModel, EmailActivationTokenModel
 from src.auth.schemas import UserRegisterSchema
 from src.auth.utils import verify_password, get_password_hash
+from src.folders.services import create_folder_in_db
+from src.folders.enums import FolderType
 
 async def get_user_by_username_or_email(
     db: AsyncSession,
@@ -58,7 +61,17 @@ async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserMo
             email=user_data.email,
             password=get_password_hash(user_data.password)
         )
-        return (await save_to_db(db, [user]))[0]
+        user = (await save_to_db(db, [user]))[0]
+
+        # creates all folder types (except custom)
+        await asyncio.gather(
+            create_folder_in_db(db=db, user=user, folder_type=FolderType.ALL),
+            create_folder_in_db(db=db, user=user, folder_type=FolderType.CHATS),
+            create_folder_in_db(db=db, user=user, folder_type=FolderType.GROUPS),
+            create_folder_in_db(db=db, user=user, folder_type=FolderType.NEW),
+        )
+        
+        return user
     except IntegrityError as e:
         await db.rollback()
 
