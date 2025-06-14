@@ -6,26 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, and_
 from sqlalchemy.orm import selectinload
 
-from src.utils import save_to_db
+from src.utils import save_to_db, get_object_or_404
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
-from src.chats.services import get_chat_or_404
 from src.chats.schemas import ChatSchema
 from src.folders.models import FolderModel, FolderChatAssociationModel
 from src.folders.schemas import CreateFolderSchema
 from src.folders.enums import FolderType
-
-async def get_folder_or_404(db: AsyncSession, folder_uuid: UUID):
-    result = await db.execute(
-        select(FolderModel)
-        .where(FolderModel.uuid == folder_uuid)
-        .options(selectinload(FolderModel.chats))
-    )
-    folder = result.scalar_one_or_none()
-
-    if folder is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Folder not found')
-    return folder
 
 async def get_all_folders(db: AsyncSession, user: UserModel) -> list[FolderModel]:
     result = await db.execute(
@@ -39,7 +26,11 @@ async def get_all_chats_from_folder(
     db: AsyncSession, 
     folder_uuid: UUID
 ) -> list[ChatSchema]:
-    folder = await get_folder_or_404(db, folder_uuid)
+    folder = await get_object_or_404(
+        db, FolderModel, FolderModel.uuid == folder_uuid,
+        options=[selectinload(FolderModel.chat_associations)],
+        detail='Folder not found'
+    )
 
     result = await db.execute(
         select(ChatModel, FolderChatAssociationModel.is_pinned)
@@ -102,7 +93,10 @@ async def delete_folder_in_db(
     user: UserModel,
     folder_uuid: UUID
 ) -> None:
-    folder = await get_folder_or_404(db, folder_uuid)
+    folder = await get_object_or_404(
+        db, FolderModel, FolderModel.uuid == folder_uuid,
+        detail='Folder not found'
+    )
 
     if folder.user.id != user.id:
         raise HTTPException(
@@ -127,8 +121,8 @@ async def add_chat_to_folder(
 ) -> ChatModel:
     # two requests 'parallel' are faster
     folder, chat = await asyncio.gather(
-        get_folder_or_404(db, folder_uuid),
-        get_chat_or_404(db, chat_uuid)
+        get_object_or_404(db, FolderModel, FolderModel.uuid == folder_uuid, detail='Folder not found'),
+        get_object_or_404(db, ChatModel, ChatModel.uuid == chat_uuid, detail='Chat not found')
     )
 
     if user not in chat.user_associations or folder.user.id != user.id:

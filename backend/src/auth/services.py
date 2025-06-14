@@ -4,11 +4,11 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 
-from src.utils import save_to_db
+from src.utils import save_to_db, get_object_or_404
 from src.settings import EMAIL_ACTIVATION_EXPIRE_MINUTES
 from src.auth.models import UserModel, EmailActivationTokenModel
 from src.auth.schemas import UserRegisterSchema
@@ -16,34 +16,16 @@ from src.auth.utils import verify_password, get_password_hash
 from src.folders.services import create_folder_in_db
 from src.folders.enums import FolderType
 
-async def get_user_by_username_or_email(
-    db: AsyncSession,
-    identifier: str
-) -> UserModel | None:
-    result = await db.execute(
-        select(UserModel).where(
-            or_(UserModel.username == identifier, UserModel.email == identifier)
-        )
-    )
-    return result.scalar_one_or_none()
-
-async def get_email_activation_token(
-    db: AsyncSession,
-    token: UUID
-) -> EmailActivationTokenModel | None:
-    result = await db.execute(
-        select(EmailActivationTokenModel)
-        .options(selectinload(EmailActivationTokenModel.user))
-        .where(EmailActivationTokenModel.uuid == token)
-    )
-    return result.scalar_one_or_none()
-
 async def authenticate_user(
     db: AsyncSession,
     identifier: str,
     password: str
 ) -> UserModel | bool:
-    user = await get_user_by_username_or_email(db, identifier)
+    user = await get_object_or_404(
+        db, UserModel,
+        or_(UserModel.username == identifier, UserModel.email == identifier),
+        detail='User not found'
+    )
 
     if not user:
         return False
@@ -108,7 +90,13 @@ async def activate_user(
         detail='Invalid or expired activation Token'
     )
     
-    token = await get_email_activation_token(db, email_activation_token)
+    token = await get_object_or_404(
+        db, EmailActivationTokenModel,
+        EmailActivationTokenModel.uuid == email_activation_token,
+        options=[selectinload(EmailActivationTokenModel.user)],
+        detail='Email activation token not found'
+    )
+
     if token is None:
         raise token_error
     if (datetime.now(timezone.utc) - token.created_at.replace(tzinfo=timezone.utc)) > timedelta(minutes=EMAIL_ACTIVATION_EXPIRE_MINUTES):
