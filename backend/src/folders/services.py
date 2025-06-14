@@ -97,15 +97,31 @@ async def create_folder_in_db(
     
     return (await save_to_db(db, [folder]))[0]
 
-async def delete_folder_in_db(db: AsyncSession, folder_uuid: UUID) -> None:
+async def delete_folder_in_db(
+    db: AsyncSession,
+    user: UserModel,
+    folder_uuid: UUID
+) -> None:
     folder = await get_folder_or_404(db, folder_uuid)
+
+    if folder.user.id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You can delete only your folders'
+        )
     
     if folder.folder_type == FolderType.CUSTOM:
-        await db.delete(folder)
-        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You can delete only custom folders'
+        )
+        
+    await db.delete(folder)
+    await db.commit()
 
 async def add_chat_to_folder(
     db: AsyncSession,
+    user: UserModel,
     folder_uuid: UUID,
     chat_uuid: UUID
 ) -> ChatModel:
@@ -115,13 +131,26 @@ async def add_chat_to_folder(
         get_chat_or_404(db, chat_uuid)
     )
 
+    if user not in chat.user_associations or folder.user.id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You can add chats to folders which belongs to you'
+        )
+
     assoc = FolderChatAssociationModel(folder=folder, chat=chat)
+
+    if folder.folder_type == FolderType.CUSTOM:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You can add chats only to custom folders'
+        )
     
     await save_to_db(db, [assoc])
     return chat
 
 async def delete_chat_from_folder(
     db: AsyncSession,
+    user: UserModel,
     folder_uuid: UUID,
     chat_uuid: UUID
 ) -> None:
@@ -132,6 +161,7 @@ async def delete_chat_from_folder(
         .where(
             and_(
                 FolderModel.uuid == folder_uuid,
+                FolderModel.user_id == user.id,
                 ChatModel.uuid == chat_uuid
             )
         )
@@ -141,6 +171,12 @@ async def delete_chat_from_folder(
     if assoc is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, 'Association not found')
 
+    if assoc.folder.folder_type == FolderType.CUSTOM:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You can delete chats only to custom folders'
+        )
+
     await db.delete(assoc)
     await db.commit()
 
@@ -148,6 +184,7 @@ async def delete_chat_from_folder(
 # True - was pinned up
 async def pin_chat_in_folder(
     db: AsyncSession,
+    user: UserModel,
     folder_uuid: UUID,
     chat_uuid: UUID
 ) -> bool:

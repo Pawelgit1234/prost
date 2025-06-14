@@ -10,7 +10,8 @@ DATABASE_URL = (
 REDIS_HOST = 'redis'
 REDIS_PORT = 6379
 REDIS_CACHE_EXPIRE_SECONDS = 60 * 60 # 1 hour
-REDIS_CHATS_KEY = 'chats_{}' # 'chats_{user_uuid}'
+REDIS_FOLDERS_KEY = 'folders_{}' # 'folders_{user_uuid}'
+REDIS_CHATS_KEY = 'chats_{}' # 'chats_{folder_uuid}'
 
 SECRET_KEY = os.environ['SECRET_KEY']
 

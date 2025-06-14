@@ -2,7 +2,6 @@ from typing import Iterable
 
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 async def save_to_db(db: AsyncSession, instances: Iterable[object]):
     db.add_all(instances)

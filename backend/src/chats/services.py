@@ -6,8 +6,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
+from redis.asyncio import Redis
 
-from src.utils import save_to_db
+from src.settings import REDIS_CHATS_KEY
+from src.utils import save_to_db, invalidate_cache
 from src.auth.models import UserModel
 from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
@@ -41,6 +43,7 @@ async def get_user_or_404(db: AsyncSession, username: str) -> ChatModel:
 
 async def create_chat_in_db(
     db: AsyncSession,
+    r: Redis,
     current_user: UserModel,
     chat_info: CreateChatSchema
 ) -> ChatModel:
@@ -74,29 +77,35 @@ async def create_chat_in_db(
     all_folder_assoc = FolderChatAssociationModel(folder=all_folder, chat=chat)
     db.add(all_folder_assoc)
 
+    await invalidate_cache(r, REDIS_CHATS_KEY, all_folder.folder_type)
+
     if chat_info.chat_type == ChatType.NORMAL:
         chats_folder_assoc = FolderChatAssociationModel(folder=chats_folder, chat=chat)
         other_user = await get_user_or_404(db, chat_info.name)
 
-        folders = await get_all_folders(db, other_user)
-        for folder in folders:
+        other_folders = await get_all_folders(db, other_user)
+        for folder in other_folders:
             match folder.folder_type:
                 case FolderType.ALL:
-                    all_folder = folder
+                    other_all_folder = folder
                 case FolderType.CHATS:
-                    chats_folder = folder
+                    other_chats_folder = folder
 
-        other_all_folder_assoc = FolderChatAssociationModel(folder=all_folder, chat=chat)
-        other_chats_folder_assoc = FolderChatAssociationModel(folder=chats_folder, chat=chat)
+        other_all_folder_assoc = FolderChatAssociationModel(folder=other_all_folder, chat=chat)
+        other_chats_folder_assoc = FolderChatAssociationModel(folder=other_chats_folder, chat=chat)
 
         other_chat_assoc = UserChatAssociationModel(
             user=other_user,
             chat=chat
         )
         db.add_all(other_chat_assoc, chats_folder_assoc, other_chats_folder_assoc, other_all_folder_assoc)
+        await invalidate_cache(r, REDIS_CHATS_KEY, chats_folder.folder_type)
+        await invalidate_cache(r, REDIS_CHATS_KEY, other_all_folder.folder_type)
+        await invalidate_cache(r, REDIS_CHATS_KEY, other_chats_folder.folder_type)
     elif chat_info.chat_type == ChatType.GROUP:
         group_folder_assoc = FolderChatAssociationModel(folder=groups_folder, chat=chat)
         db.add(group_folder_assoc)
+        await invalidate_cache(r, REDIS_CHATS_KEY, groups_folder.folder_type)
     
     await db.commit()
     logger.info(f"Chat '{chat.name}' was created by '{current_user.username}'")
@@ -104,11 +113,15 @@ async def create_chat_in_db(
 
 async def delete_chat_in_db(
     db: AsyncSession,
+    r: Redis,
     user: UserModel,
     chat_uuid: UUID
 ) -> list[UserModel]:
     chat = await get_chat_or_404(db, chat_uuid)
     users = [assoc.user for assoc in chat.user_associations]
+
+    tasks = [invalidate_cache(r, REDIS_CHATS_KEY, folder.uuid) for folder in chat.folder_associations]
+    await asyncio.gather(*tasks)
 
     if user not in users:
         raise HTTPException(
@@ -123,10 +136,13 @@ async def delete_chat_in_db(
 
 async def quit_group_in_db(
     db: AsyncSession,
+    r: Redis,
     current_user: UserModel,
     chat_uuid: UUID
 ) -> None:
     chat = await get_chat_or_404(db, chat_uuid)
+    tasks = [invalidate_cache(r, REDIS_CHATS_KEY, folder.uuid) for folder in chat.folder_associations]
+    await asyncio.gather(*tasks)
 
     # goes trough all users
     for assoc in chat.user_associations:
@@ -149,6 +165,7 @@ async def quit_group_in_db(
 
 async def add_user_to_group_in_db(
     db: AsyncSession,
+    r: Redis,
     group_uuid: UUID,
     username: str,
     current_user: UserModel,
@@ -177,6 +194,9 @@ async def add_user_to_group_in_db(
                 all_folder = folder
             case FolderType.GROUPS:
                 group_folder = folder
+
+    await invalidate_cache(r, REDIS_CHATS_KEY, all_folder.folder_type)
+    await invalidate_cache(r, REDIS_CHATS_KEY, group_folder.folder_type)
 
     all_folder_assoc = FolderChatAssociationModel(folder=all_folder, chat=chat)
     group_folder_assoc = FolderChatAssociationModel(folder=group_folder, chat=chat)
