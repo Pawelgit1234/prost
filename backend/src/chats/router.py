@@ -34,7 +34,7 @@ async def delete_chat(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     chat_uuid: UUID
 ):
-    users = await delete_chat_in_db(db, r, current_user, chat_uuid)
+    await delete_chat_in_db(db, r, current_user, chat_uuid)
     return {'success': True}
 
 # you can quit a group without deleting it
@@ -56,5 +56,5 @@ async def add_user_to_group(
     group_uuid: UUID,
     username: str
 ):
-    added_user = await add_user_to_group_in_db(db, r, group_uuid, username, current_user)
+    await add_user_to_group_in_db(db, r, group_uuid, username, current_user)
     return {'success': True}

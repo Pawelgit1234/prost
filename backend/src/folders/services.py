@@ -1,8 +1,10 @@
 from uuid import UUID
 import asyncio
+import logging
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, desc, and_
 from sqlalchemy.orm import selectinload
 
@@ -14,42 +16,71 @@ from src.folders.models import FolderModel, FolderChatAssociationModel
 from src.folders.schemas import CreateFolderSchema
 from src.folders.enums import FolderType
 
-async def get_all_folders(db: AsyncSession, user: UserModel) -> list[FolderModel]:
+logger = logging.getLogger(__name__)
+
+# already protects the user with by checking the user id
+async def _get_folder_chat_assoc_or_404(
+    db: AsyncSession,
+    user: UserModel,
+    folder_uuid: UUID,
+    chat_uuid: UUID,
+    detail: str = "Association not found"
+) -> FolderChatAssociationModel:
+    result = await db.execute(
+        select(FolderChatAssociationModel)
+        .options(selectinload(FolderChatAssociationModel.folder))
+        .join(FolderModel, FolderChatAssociationModel.folder_id == FolderModel.id)
+        .join(ChatModel, FolderChatAssociationModel.chat_id == ChatModel.id)
+        .where(
+            and_(
+                FolderModel.uuid == folder_uuid,
+                ChatModel.uuid == chat_uuid,
+                FolderModel.user_id == user.id,
+            )
+        )
+    )
+    assoc = result.scalar_one_or_none()
+
+    if assoc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+    return assoc
+
+async def get_folders_list(db: AsyncSession, user: UserModel) -> list[FolderModel]:
     result = await db.execute(
         select(FolderModel)
         .where(FolderModel.user_id == user.id)
         .order_by(FolderModel.position)
     )
-    return await result.all()
+    return result.scalars().all()
 
-async def get_all_chats_from_folder(
+async def get_chats_list_from_folder(
     db: AsyncSession, 
+    user: UserModel,
     folder_uuid: UUID
 ) -> list[ChatSchema]:
-    folder = await get_object_or_404(
-        db, FolderModel, FolderModel.uuid == folder_uuid,
-        options=[selectinload(FolderModel.chat_associations)],
-        detail='Folder not found'
-    )
-
     result = await db.execute(
-        select(ChatModel, FolderChatAssociationModel.is_pinned)
+        select(FolderModel.user_id, ChatModel, FolderChatAssociationModel.is_pinned)
         .join(FolderChatAssociationModel, ChatModel.id == FolderChatAssociationModel.chat_id)
-        .where(FolderChatAssociationModel.folder_id == folder.id)
+        .join(FolderModel, FolderChatAssociationModel.folder_id == FolderModel.id)
+        .where(FolderModel.uuid == folder_uuid)
     )
+    rows = result.all()
 
-    chats_with_pins = result.all()
+    # checks if this folder belongs to the user
+    if rows[0][0] != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access to Folder forbidden"
+        )
 
-    chat_schemas: list[ChatSchema] = []
-    for chat, is_pinned in chats_with_pins:
-        chat_data = {
+    return [
+        ChatSchema.model_validate({
             **chat.__dict__,
             "is_pinned": is_pinned
-        }
-        chat_schema = ChatSchema.model_validate(chat_data)
-        chat_schemas.append(chat_schema)
-
-    return chat_schemas
+        })
+        for _, chat, is_pinned in rows
+    ]
 
 async def get_last_position(db: AsyncSession, user: UserModel) -> int:
     result = await db.execute(
@@ -61,17 +92,11 @@ async def get_last_position(db: AsyncSession, user: UserModel) -> int:
     return result.scalar_one_or_none() or -1
 
 async def reorder_folders_after_deletion(db: AsyncSession, user: UserModel) -> None:
-    result = await db.execute(
-        select(FolderModel)
-        .where(FolderModel.user_id == user.id)
-        .order_by(FolderModel.position)
-    )
-    folders = result.all()
+    folders = await get_folders_list(db, user)
 
-    if folders is not None:
-        for new_pos, folder in enumerate(folders):
-            folder.position = new_pos
-        await db.commit()
+    for new_pos, folder in enumerate(folders):
+        folder.position = new_pos
+    await db.commit()
 
 async def create_folder_in_db(
     db: AsyncSession,
@@ -79,11 +104,13 @@ async def create_folder_in_db(
     folder_info: CreateFolderSchema | None = None,
     folder_type: FolderType | None = FolderType.CUSTOM
 ) -> FolderModel:
-    last_position = await get_last_position()
+    last_position = await get_last_position(db, user)
     
     folder = FolderModel(
-        name=None if folder_info is None else folder_info.name, position=last_position + 1,
-        user=user, folder_type=folder_type
+        name=None if folder_info is None else folder_info.name,
+        position=last_position + 1,
+        user=user,
+        folder_type=folder_type
     )
     
     return (await save_to_db(db, [folder]))[0]
@@ -98,19 +125,20 @@ async def delete_folder_in_db(
         detail='Folder not found'
     )
 
-    if folder.user.id != user.id:
+    if folder.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='You can delete only your folders'
+            detail='Not your folder'
         )
     
-    if folder.folder_type == FolderType.CUSTOM:
+    if folder.folder_type != FolderType.CUSTOM:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='You can delete only custom folders'
+            detail='Only custom folders allowed'
         )
         
     await db.delete(folder)
+    logger.info(f'Folder {folder.name} deleted')
     await db.commit()
 
 async def add_chat_to_folder(
@@ -118,29 +146,38 @@ async def add_chat_to_folder(
     user: UserModel,
     folder_uuid: UUID,
     chat_uuid: UUID
-) -> ChatModel:
-    # two requests 'parallel' are faster
-    folder, chat = await asyncio.gather(
-        get_object_or_404(db, FolderModel, FolderModel.uuid == folder_uuid, detail='Folder not found'),
-        get_object_or_404(db, ChatModel, ChatModel.uuid == chat_uuid, detail='Chat not found')
+) -> None:
+    folder = await get_object_or_404(
+        db, FolderModel, FolderModel.uuid == folder_uuid, detail='Folder not found'
+    )
+    chat = await get_object_or_404(
+        db, ChatModel, ChatModel.uuid == chat_uuid, detail='Chat not found',
+        options=[selectinload(ChatModel.user_associations)]
     )
 
-    if user not in chat.user_associations or folder.user.id != user.id:
+    user_ids = [assoc.user_id for assoc in chat.user_associations]
+    if user.id not in user_ids or folder.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='You can add chats to folders which belongs to you'
+            detail='Chat or folder not accessible'
         )
 
-    assoc = FolderChatAssociationModel(folder=folder, chat=chat)
-
-    if folder.folder_type == FolderType.CUSTOM:
+    if folder.folder_type != FolderType.CUSTOM:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='You can add chats only to custom folders'
+            detail='Only custom folders allowed'
         )
-    
-    await save_to_db(db, [assoc])
-    return chat
+
+    try: 
+        assoc = FolderChatAssociationModel(folder=folder, chat=chat)
+        db.add(assoc)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This chat is already in the folder"
+        )
 
 async def delete_chat_from_folder(
     db: AsyncSession,
@@ -148,56 +185,25 @@ async def delete_chat_from_folder(
     folder_uuid: UUID,
     chat_uuid: UUID
 ) -> None:
-    result = await db.execute(
-        select(FolderChatAssociationModel)
-        .join(FolderModel, FolderChatAssociationModel.folder_id == FolderModel.id)
-        .join(ChatModel, FolderChatAssociationModel.chat_id == ChatModel.id)
-        .where(
-            and_(
-                FolderModel.uuid == folder_uuid,
-                FolderModel.user_id == user.id,
-                ChatModel.uuid == chat_uuid
-            )
-        )
-    )
-    assoc = result.scalar_one_or_none()
-    
-    if assoc is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Association not found')
+    assoc = await _get_folder_chat_assoc_or_404(db, user, folder_uuid, chat_uuid)
 
-    if assoc.folder.folder_type == FolderType.CUSTOM:
+    if assoc.folder.folder_type != FolderType.CUSTOM:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='You can delete chats only to custom folders'
+            detail='Only custom folders allowed'
         )
 
     await db.delete(assoc)
     await db.commit()
 
-# False - was unpinned
-# True - was pinned up
+# True - was pinned up | False - was unpinned
 async def pin_chat_in_folder(
     db: AsyncSession,
     user: UserModel,
     folder_uuid: UUID,
     chat_uuid: UUID
 ) -> bool:
-    result = await db.execute(
-        select(FolderChatAssociationModel)
-        .join(FolderModel, FolderChatAssociationModel.folder_id == FolderModel.id)
-        .join(ChatModel, FolderChatAssociationModel.chat_id == ChatModel.id)
-        .where(
-            and_(
-                FolderModel.uuid == folder_uuid,
-                ChatModel.uuid == chat_uuid
-            )
-        )
-    )
-    assoc = result.scalar_one_or_none()
-    
-    if assoc is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Association not found')
-
+    assoc = await _get_folder_chat_assoc_or_404(db, user, folder_uuid, chat_uuid)
     assoc.is_pinned = not assoc.is_pinned
     await db.commit()
 

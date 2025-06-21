@@ -5,9 +5,9 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.utils import get_object_or_404
 from src.auth.models import UserModel
 from src.auth.utils import decode_jwt_token
-from src.auth.services import get_user_by_username_or_email
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
@@ -22,7 +22,10 @@ async def get_current_user(
     )
 
     token_data = decode_jwt_token(token)
-    user = await get_user_by_username_or_email(db, token_data.username)
+    user = await get_object_or_404(
+        db, UserModel,
+        UserModel.username == token_data.username, detail='User not found'
+    )
     if user is None:
         raise credentials_exception
     return user

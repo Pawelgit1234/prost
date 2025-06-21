@@ -7,16 +7,16 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth
 
-from src.utils import save_to_db
+from src.database import get_db
+from src.utils import save_to_db, get_object_or_404
+from src.dependencies import get_current_user
 from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
     decode_jwt_token
 from src.auth.schemas import TokenSchema, UserRegisterSchema, RefreshTokenSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
-    activate_user, get_user_by_username_or_email
+    activate_user 
 from src.auth.models import UserModel
-from src.database import get_db
-from src.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,10 @@ async def google_callback(
     resp = await oauth.google.get('userinfo', token=token)
     user_info = resp.json()
 
-    user = await get_user_by_username_or_email(db, user_info['email'])
+    user = await get_object_or_404(
+        db, UserModel,
+        UserModel.email == user_info['email'], detail='User not found'
+    )
 
     if user is None:
         username = ('_'.join(user_info['name'].split()).lower() + str(uuid4()))[:16]

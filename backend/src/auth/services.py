@@ -46,12 +46,10 @@ async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserMo
         user = (await save_to_db(db, [user]))[0]
 
         # creates all folder types (except custom)
-        await asyncio.gather(
-            create_folder_in_db(db=db, user=user, folder_type=FolderType.ALL),
-            create_folder_in_db(db=db, user=user, folder_type=FolderType.CHATS),
-            create_folder_in_db(db=db, user=user, folder_type=FolderType.GROUPS),
-            create_folder_in_db(db=db, user=user, folder_type=FolderType.NEW),
-        )
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.ALL)
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.CHATS)
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.GROUPS)
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.NEW)
         
         return user
     except IntegrityError as e:
