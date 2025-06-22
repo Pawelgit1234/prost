@@ -27,8 +27,6 @@ async def authenticate_user(
         detail='User not found'
     )
 
-    if not user:
-        return False
     if not verify_password(password, user.password):
         return False
     return user

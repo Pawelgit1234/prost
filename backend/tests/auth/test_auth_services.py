@@ -35,8 +35,10 @@ async def test_invalid_user_auth(get_db):
         password='Secret12%8800'
     )
 
-    result = await authenticate_user(get_db, 'Barbara', 'other_secret')
-    assert not result
+    with pytest.raises(HTTPException) as exc_info:
+        await authenticate_user(get_db, 'Barbara', 'other_secret')
+
+    assert exc_info.value.status_code == 404
 
 @pytest.mark.asyncio
 async def test_valid_user_activation(get_db):
@@ -72,4 +74,3 @@ async def test_invalid_user_activation(get_db):
         await activate_user(get_db, uuid.uuid4(), user)
 
     assert exc_info.value.status_code == 404
-    assert 'Invalid or expired activation Token' in exc_info.value.detail

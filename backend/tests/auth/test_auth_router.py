@@ -18,7 +18,7 @@ def test_google_callback(mocker, client: TestClient):
     mocker.patch('src.auth.router.oauth.google.get', new=AsyncMock(return_value=mock_response))
 
     mock_user = MagicMock(username=google_data['given_name'])
-    mocker.patch("src.auth.router.get_user_by_username_or_email", new=AsyncMock(return_value=mock_user))
+    mocker.patch("src.auth.router.get_object_or_404", new=AsyncMock(return_value=mock_user))
 
     response = client.get('/auth/google/callback')
     assert response.status_code == 200

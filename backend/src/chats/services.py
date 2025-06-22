@@ -53,6 +53,7 @@ async def create_chat_in_db(
     folders = group_folders_by_type(await get_folders_list(db, current_user))
     all_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.ALL], chat=chat)
     db.add(all_folder_assoc)
+
     await invalidate_cache(r, REDIS_CHATS_KEY, folders[FolderType.ALL].uuid, current_user.uuid)
 
     if chat_info.chat_type == ChatType.NORMAL:
@@ -155,7 +156,6 @@ async def add_user_to_group_in_db(
     )
     
     user_ids = [assoc.user_id for assoc in group.user_associations]
-
     if current_user.id not in user_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -1,5 +1,4 @@
 from uuid import UUID
-import asyncio
 import logging
 
 from fastapi import HTTPException, status
