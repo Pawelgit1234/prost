@@ -13,6 +13,11 @@ REDIS_CACHE_EXPIRE_SECONDS = 60 * 60 # 1 hour
 REDIS_FOLDERS_KEY = 'folders_{}' # 'folders_{user_uuid}'
 REDIS_CHATS_KEY = 'chats_{}_{}' # 'chats_{folder_uuid}_{user_uuid}'
 
+ELASTIC_HOST = 'http://elasticsearch:9200'
+ELASTIC_PASSWORD = os.environ['ELASTIC_PASSWORD']
+ELASTIC_CHATS_INDEX_NAME = 'chats'
+ELASTIC_PAGE_SIZE = 20
+
 SECRET_KEY = os.environ['SECRET_KEY']
 
 GOOGLE_CLIENT_ID=os.environ['GOOGLE_CLIENT_ID']

@@ -13,6 +13,7 @@ services:
       - SENDER_EMAIL_PASSWORD=${SENDER_EMAIL_PASSWORD}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
     ports:
       - 8000:8000
     volumes:
@@ -21,6 +22,7 @@ services:
     depends_on:
       - db
       - redis
+      - elasticsearch
 
   db:
     image: postgres
@@ -53,7 +55,23 @@ services:
     restart: always
     ports:
       - 6379:6379
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - 9200:9200
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    restart: always
 
 volumes:
   pgdata:
   pgadmin_data:
+  esdata:
