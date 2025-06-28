@@ -10,7 +10,7 @@ from src.database import create_indices
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_indices()
+    await create_indices() # elasticsearch
     yield
 
 app = FastAPI(lifespan=lifespan)

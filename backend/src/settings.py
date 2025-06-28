@@ -16,6 +16,8 @@ REDIS_CHATS_KEY = 'chats_{}_{}' # 'chats_{folder_uuid}_{user_uuid}'
 ELASTIC_HOST = 'http://elasticsearch:9200'
 ELASTIC_PASSWORD = os.environ['ELASTIC_PASSWORD']
 ELASTIC_CHATS_INDEX_NAME = 'chats'
+ELASTIC_USERS_INDEX_NAME = 'users'
+ELASTIC_MESSAGES_INDEX_NAME = 'messages'
 ELASTIC_PAGE_SIZE = 20
 
 SECRET_KEY = os.environ['SECRET_KEY']
