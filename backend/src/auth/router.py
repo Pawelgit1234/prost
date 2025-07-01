@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, 
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth
+from elasticsearch import AsyncElasticsearch
 
-from src.database import get_db
+from src.database import get_db, get_es
 from src.utils import save_to_db, get_object_or_404
 from src.dependencies import get_current_user
-from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
+from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID, ELASTIC_USERS_INDEX_NAME
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
     decode_jwt_token
 from src.auth.schemas import TokenSchema, UserRegisterSchema, RefreshTokenSchema
@@ -44,6 +45,7 @@ async def google_login(request: Request):
 @router.get('/google/callback')
 async def google_callback(
     db: Annotated[AsyncSession, Depends(get_db)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
     request: Request
 ):
     token = await oauth.google.authorize_access_token(request)
@@ -66,6 +68,19 @@ async def google_callback(
             is_active=user_info['verified_email']
         )
         user = (await save_to_db(db, [new_user]))[0]
+
+        await es.index(
+            index=ELASTIC_USERS_INDEX_NAME,
+            id=str(user.uuid),
+            document={
+                "first_name": user_info['given_name'],
+                "last_name": user_info['family_name'],
+                "username": username,
+                "description": None,
+                "avatar": user_info['picture'],
+            }
+        )
+        
         logging.info(f'{user.username} registered in by google')
     else:
         logging.info(f'{user.username} logged in by google')
@@ -105,6 +120,7 @@ async def login(
 @router.post('/register')
 async def register(
     db: Annotated[AsyncSession, Depends(get_db)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
     background_tasks: BackgroundTasks,
     user_data: UserRegisterSchema
 ):
@@ -122,6 +138,18 @@ async def register(
             Here is your email activation
             <a href={activation_link}>link</a>.
         """
+    )
+
+    await es.index(
+        index=ELASTIC_USERS_INDEX_NAME,
+        id=str(user.uuid),
+        document={
+            "first_name": user_data.first_name,
+            "last_name": user_data.last_name,
+            "username": user_data.username,
+            "description": user_data.description,
+            "avatar": None,
+        }
     )
     
     logging.info(f'{user.username} registration completed')

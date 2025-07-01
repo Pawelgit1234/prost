@@ -12,6 +12,8 @@ REDIS_PORT = 6379
 REDIS_CACHE_EXPIRE_SECONDS = 60 * 60 # 1 hour
 REDIS_FOLDERS_KEY = 'folders_{}' # 'folders_{user_uuid}'
 REDIS_CHATS_KEY = 'chats_{}_{}' # 'chats_{folder_uuid}_{user_uuid}'
+REDIS_SEARCH_HISTORY_KEY = 'search_history_{}' # 'history_{user_uuid}
+SEARCH_HISTORY_SIZE = 100
 
 ELASTIC_HOST = 'http://elasticsearch:9200'
 ELASTIC_PASSWORD = os.environ['ELASTIC_PASSWORD']

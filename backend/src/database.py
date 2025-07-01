@@ -52,62 +52,131 @@ async def _wait_for_elasticsearch(es: AsyncElasticsearch, retries: int = 30, del
             pass
         logger.info(f"Waiting for Elasticsearch... (attempt {attempt + 1}/{retries})")
         await asyncio.sleep(delay)
+    logger.warning("Elasticsearch did not become available in time.")
     raise RuntimeError("Elasticsearch did not become available in time.")
-   
+
 async def create_indices():
     await _wait_for_elasticsearch(es)
-    try:
-        # chats
-        if not await es.indices.exists(index=ELASTIC_CHATS_INDEX_NAME):
-            await es.indices.create(
-                index=ELASTIC_CHATS_INDEX_NAME,
-                body={
-                    "mappings": {
-                        "properties": {
-                            "uuid": {"type": "keyword"},
-                            "chat_type": {"type": "keyword"},
-                            "name": {"type": "text"},
-                            "description": {"type": "text"},
-                            "avatar": {"type": "keyword", "index": False},
-                        }
+
+    common_settings = {
+        "settings": {
+            "analysis": {
+                "tokenizer": {
+                    "autocomplete_tokenizer": {
+                        "type": "edge_ngram",
+                        "min_gram": 1,
+                        "max_gram": 20,
+                        "token_chars": ["letter", "digit"]
+                    }
+                },
+                "analyzer": {
+                    "autocomplete": {
+                        "type": "custom",
+                        "tokenizer": "autocomplete_tokenizer",
+                        "filter": ["lowercase"]
                     }
                 }
-            )
-            logger.info(f"Elasticsearch index '{ELASTIC_CHATS_INDEX_NAME}' created")
+            }
+        }
+    }
 
-        # users
-        if not await es.indices.exists(index=ELASTIC_USERS_INDEX_NAME):
-            await es.indices.create(
-                index=ELASTIC_USERS_INDEX_NAME,
-                body={
-                    "mappings": {
-                        "properties": {
-                            "uuid": {"type": "keyword"},
-                            "first_name": {"type": "text"},
-                            "last_name": {"type": "text"},
-                            "username": {"type": "text"},
-                            "description": {"type": "text"},
-                            "avatar": {"type": "keyword", "index": False},
-                        }
+    # chats
+    if not await es.indices.exists(index=ELASTIC_CHATS_INDEX_NAME):
+        await es.indices.create(
+            index=ELASTIC_CHATS_INDEX_NAME,
+            body={
+                **common_settings,
+                "mappings": {
+                    "properties": {
+                        "chat_type": {"type": "keyword"},
+                        "name": {
+                            "type": "text",
+                            "fields": {
+                                "autocomplete": {
+                                    "type": "text",
+                                    "analyzer": "autocomplete",
+                                    "search_analyzer": "standard"
+                                }
+                            }
+                        },
+                        "description": {"type": "text"},
+                        "members": {"type": "keyword"}, # users in chat
+                        "visibility_level": {"type": "keyword"}, # does sense only for groups
+                        "avatar": {"type": "keyword", "index": False},
                     }
                 }
-            )
-            logger.info(f"Elasticsearch index '{ELASTIC_USERS_INDEX_NAME}' created")
+            }
+        )
+        logger.info(f"Elasticsearch index '{ELASTIC_CHATS_INDEX_NAME}' created")
 
-        # messages
-        if not await es.indices.exists(index=ELASTIC_MESSAGES_INDEX_NAME):
-            await es.indices.create(
-                index=ELASTIC_MESSAGES_INDEX_NAME,
-                body={
-                    "mappings": {
-                        "properties": {
-                            "uuid": {"type": "keyword"},
-                            "text": {"type": "text"},
-                        }
+    # users
+    if not await es.indices.exists(index=ELASTIC_USERS_INDEX_NAME):
+        await es.indices.create(
+            index=ELASTIC_USERS_INDEX_NAME,
+            body={
+                **common_settings,
+                "mappings": {
+                    "properties": {
+                        "first_name": {
+                            "type": "text",
+                            "fields": {
+                                "autocomplete": {
+                                    "type": "text",
+                                    "analyzer": "autocomplete",
+                                    "search_analyzer": "standard"
+                                }
+                            }
+                        },
+                        "last_name": {
+                            "type": "text",
+                            "fields": {
+                                "autocomplete": {
+                                    "type": "text",
+                                    "analyzer": "autocomplete",
+                                    "search_analyzer": "standard"
+                                }
+                            }
+                        },
+                        "username": {
+                            "type": "text",
+                            "fields": {
+                                "autocomplete": {
+                                    "type": "text",
+                                    "analyzer": "autocomplete",
+                                    "search_analyzer": "standard"
+                                }
+                            }
+                        },
+                        "description": {"type": "text"},
+                        "visibility_level": {"type": "keyword"},
+                        "avatar": {"type": "keyword", "index": False},
                     }
                 }
-            )
-            logger.info(f"Elasticsearch index '{ELASTIC_MESSAGES_INDEX_NAME}' created")
+            }
+        )
+        logger.info(f"Elasticsearch index '{ELASTIC_USERS_INDEX_NAME}' created")
 
-    except Exception as e:
-        logger.warning(f"Elastic error: {e}")
+    # messages
+    if not await es.indices.exists(index=ELASTIC_MESSAGES_INDEX_NAME):
+        await es.indices.create(
+            index=ELASTIC_MESSAGES_INDEX_NAME,
+            body={
+                **common_settings,
+                "mappings": {
+                    "properties": {
+                        "text": {
+                            "type": "text",
+                            "fields": {
+                                "autocomplete": {
+                                    "type": "text",
+                                    "analyzer": "autocomplete",
+                                    "search_analyzer": "standard"
+                                }
+                            }
+                        },
+                        "members": {"type": "keyword"}, # users who see can see this msg
+                    }
+                }
+            }
+        )
+        logger.info(f"Elasticsearch index '{ELASTIC_MESSAGES_INDEX_NAME}' created")

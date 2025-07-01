@@ -6,9 +6,9 @@ from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.settings import ELASTIC_PAGE_SIZE, ELASTIC_CHATS_INDEX_NAME
+from src.settings import ELASTIC_PAGE_SIZE, REDIS_SEARCH_HISTORY_KEY, SEARCH_HISTORY_SIZE, \
+    ELASTIC_CHATS_INDEX_NAME, ELASTIC_USERS_INDEX_NAME, ELASTIC_MESSAGES_INDEX_NAME
 from src.database import get_es, get_redis, get_db
-from src.utils import invalidate_cache
 from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
     
@@ -16,37 +16,55 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/search', tags=['search'])
 
+# users, groups, messages + own chats
 @router.get('/global')
 async def search_global(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
-    # current_user: Annotated[UserModel, Depends(get_active_current_user)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
     q: str = Query(..., min_length=1),
     page: int = Query(1, ge=1),
 ):
+    key = REDIS_SEARCH_HISTORY_KEY.format(current_user.uuid)
+    await r.lpush(key, q)
+    await r.ltrim(key, 0, SEARCH_HISTORY_SIZE - 1)
 
-    body = {
-        "query": {
-            "multi_match": {
-                "query": q,
-                "fields": ["name", "description"] # name is more important than description
-            }
-        },
-        "from": (page - 1) * ELASTIC_PAGE_SIZE,
-        "size": ELASTIC_PAGE_SIZE
-    }
-    
-    response = await es.search(index=ELASTIC_CHATS_INDEX_NAME, body=body)
-    hits = response["hits"]["hits"]
-    
-    items = [hit["_source"] for hit in hits]
-    total = response["hits"]["total"]["value"]
+    response = await es.search(
+        index=f'{ELASTIC_USERS_INDEX_NAME},{ELASTIC_CHATS_INDEX_NAME},{ELASTIC_MESSAGES_INDEX_NAME}',
+        body={
+            'query': {
+                'multi_match': {
+                    'query': q,
+                    'fields': [
+                        'name^5', 'name.autocomplete^3',
+                        'username^4', 'username.autocomplete^2',
+                        'first_name^2', 'first_name.autocomplete',
+                        'last_name^2', 'last_name.autocomplete',
+                        'description^0.5',
+                        'text', 'text.autocomplete',
+                    ],
+                    'type': 'best_fields',
+                    'fuzziness': 'AUTO',
+                }
+            },
+            'from': (page - 1) * ELASTIC_PAGE_SIZE,
+            'size': ELASTIC_PAGE_SIZE
+        }
+    )
 
+    total = response['hits']['total']['value']
+    items: list[dict] = []
+
+    for hit in response['hits']['hits']:
+        doc = hit['_source']
+        doc['uuid'] = hit['_id']
+        doc['type'] = hit['_index']
+        items.append(doc)
+    
     return {
         "total": total,
         "page": page,
-        "page_size": ELASTIC_PAGE_SIZE,
         "items": items
     }
 
@@ -58,9 +76,11 @@ async def search_messages(
 ):
     return None
 
-@router.get('/last_queries')
-async def get_last_queries(
+# n last search queries
+@router.get('/history')
+async def get_search_history(
     r: Annotated[Redis, Depends(get_redis)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
 ):
-    return None
+    history = await r.lrange(REDIS_SEARCH_HISTORY_KEY.format(current_user.uuid), 0, -1)
+    return {'items': history}
