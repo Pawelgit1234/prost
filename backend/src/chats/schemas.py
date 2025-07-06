@@ -8,10 +8,11 @@ from src.chats.enums import ChatType
 class CreateChatSchema(BaseModel):
     chat_type: ChatType  # says what type of chat it is: group or normal chat
     name: str = Field(max_length=100)  # group name or username
-    group_description: str | None = Field(default=None, max_length=100)  # optional
+    group_description: str | None = Field(default=None, max_length=100)  # optional and only for groups
 
     @model_validator(mode='after')
     def validate_group_or_chat(self) -> 'CreateChatSchema':
+        """ Normal chats cannot have a group description """
         if self.chat_type == ChatType.NORMAL and self.group_description is not None:
             raise ValueError("Normal chats cannot have a group description")
         return self

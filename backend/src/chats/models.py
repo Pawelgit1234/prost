@@ -32,6 +32,7 @@ class ChatModel(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(100))
     # for groups
     description: Mapped[str] = mapped_column(String(100), nullable=True)
+    is_visible: Mapped[bool] = mapped_column(default=False) # search
     avatar: Mapped[str] = mapped_column(nullable=True) # avatar will be set later in settings
 
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="chat")

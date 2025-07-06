@@ -11,6 +11,7 @@ from src.settings import DATABASE_URL, REDIS_PORT, REDIS_HOST, ELASTIC_PASSWORD,
 
 logger = logging.getLogger(__name__)
 
+# SQLAlchemy
 class Base(DeclarativeBase):
     pass
 
@@ -21,6 +22,7 @@ async def get_db():
     async with async_session() as session:
         yield session
 
+# Redis
 redis_client = Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 async def get_redis():
@@ -29,6 +31,7 @@ async def get_redis():
     finally:
         pass
 
+# Elasticsearch
 es = AsyncElasticsearch(
     ELASTIC_HOST,
     basic_auth=('elastic', ELASTIC_PASSWORD),
@@ -88,7 +91,6 @@ async def create_indices():
                 **common_settings,
                 "mappings": {
                     "properties": {
-                        "chat_type": {"type": "keyword"},
                         "name": {
                             "type": "text",
                             "fields": {
@@ -100,8 +102,9 @@ async def create_indices():
                             }
                         },
                         "description": {"type": "text"},
+                        "chat_type": {"type": "keyword"},
                         "members": {"type": "keyword"}, # users in chat
-                        "visibility_level": {"type": "keyword"}, # does sense only for groups
+                        "is_visible": {"type": "boolean"}, # always false in normal chats
                         "avatar": {"type": "keyword", "index": False},
                     }
                 }
@@ -110,6 +113,7 @@ async def create_indices():
         logger.info(f"Elasticsearch index '{ELASTIC_CHATS_INDEX_NAME}' created")
 
     # users
+    # hidden user will not be saved
     if not await es.indices.exists(index=ELASTIC_USERS_INDEX_NAME):
         await es.indices.create(
             index=ELASTIC_USERS_INDEX_NAME,
@@ -148,7 +152,6 @@ async def create_indices():
                             }
                         },
                         "description": {"type": "text"},
-                        "visibility_level": {"type": "keyword"},
                         "avatar": {"type": "keyword", "index": False},
                     }
                 }
@@ -174,6 +177,7 @@ async def create_indices():
                                 }
                             }
                         },
+                        "chat": {"type": "keyword"}, # chat uuid
                         "members": {"type": "keyword"}, # users who see can see this msg
                     }
                 }

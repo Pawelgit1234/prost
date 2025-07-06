@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from elasticsearch import AsyncElasticsearch
 
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
-    quit_group_in_db, add_user_to_group_in_db
+    quit_group_in_db, add_user_to_group_in_db, update_chat_members_in_elastic
+from src.chats.utils import get_chat_users_uuids
 from src.chats.schemas import CreateChatSchema, ChatSchema
 from src.dependencies import get_active_current_user
 from src.settings import ELASTIC_CHATS_INDEX_NAME
@@ -35,7 +36,9 @@ async def create_chat(
             "chat_type": chat.chat_type.value,
             "name": chat.name,
             "description": chat.description,
-            "avatar": None
+            "avatar": None,
+            "members": get_chat_users_uuids(chat),
+            "is_visible": chat.is_visible,
         }
     )
     return ChatSchema.model_validate(chat)
@@ -49,10 +52,7 @@ async def delete_chat(
     chat_uuid: UUID
 ):
     await delete_chat_in_db(db, r, current_user, chat_uuid)
-    await es.delete(
-        index=ELASTIC_CHATS_INDEX_NAME,
-        id=str(chat_uuid)
-    )
+    await es.delete(index=ELASTIC_CHATS_INDEX_NAME, id=str(chat_uuid))
     return {'success': True}
 
 # you can quit a group without deleting it
@@ -60,19 +60,23 @@ async def delete_chat(
 async def quit_group(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     group_uuid: UUID
 ):
-    await quit_group_in_db(db, r, current_user, group_uuid)
+    chat = await quit_group_in_db(db, r, current_user, group_uuid)
+    await update_chat_members_in_elastic(es, chat)
     return {'success': True}
 
 @router.post('{group_uuid}/add_user')
 async def add_user_to_group(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     group_uuid: UUID,
     username: str
 ):
-    await add_user_to_group_in_db(db, r, group_uuid, username, current_user)
+    chat = await add_user_to_group_in_db(db, r, group_uuid, username, current_user)
+    await update_chat_members_in_elastic(es, chat)
     return {'success': True}

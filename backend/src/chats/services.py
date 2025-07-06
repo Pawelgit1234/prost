@@ -7,14 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from redis.asyncio import Redis
+from elasticsearch import AsyncElasticsearch
 
-from src.settings import REDIS_CHATS_KEY
+from src.settings import REDIS_CHATS_KEY, ELASTIC_CHATS_INDEX_NAME
 from src.utils import save_to_db, invalidate_cache, get_object_or_404
 from src.auth.models import UserModel
 from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.enums import ChatType
-from src.chats.utils import group_folders_by_type, invalidate_chat_cache
+from src.chats.utils import group_folders_by_type, invalidate_chat_cache, get_chat_users_uuids
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 
@@ -84,6 +85,8 @@ async def create_chat_in_db(
     
     # commit and flush
     chat = (await save_to_db(db, [chat]))[0]
+    # loads user and folder associations
+    chat = await _get_chat_or_404(db, chat.uuid)
 
     logger.info(f"Chat '{chat.name}' created by '{current_user.username}'")
     return chat
@@ -115,18 +118,19 @@ async def quit_group_in_db(
     r: Redis,
     current_user: UserModel,
     chat_uuid: UUID
-) -> None:
+) -> ChatModel:
     chat = await _get_chat_or_404(db, chat_uuid)
     folders = [assoc.folder for assoc in chat.folder_associations]
     await invalidate_chat_cache(r, *folders, user=current_user)
 
-    # goes trough all users
+    # quit group
     for assoc in chat.user_associations:
         if assoc.user_id == current_user.id:
             await db.delete(assoc)
             logger.info(f"'{current_user.username}' quit group '{chat.name}'")
             break
     
+    # remove from the folder
     await db.execute(
         delete(FolderChatAssociationModel)
         .where(
@@ -137,6 +141,8 @@ async def quit_group_in_db(
         )
     )
     await db.commit()
+    logger.info(f"'{current_user.username}' quit group '{chat.name}'")
+    return chat
 
 async def add_user_to_group_in_db(
     db: AsyncSession,
@@ -144,7 +150,7 @@ async def add_user_to_group_in_db(
     group_uuid: UUID,
     username: str,
     current_user: UserModel,
-) -> None:
+) -> ChatModel:
     from src.folders.services import get_folders_list
     # two requests 'parallel' are faster
     group, user = await asyncio.gather(
@@ -184,3 +190,13 @@ async def add_user_to_group_in_db(
     await db.commit()
 
     logger.info(f"'{user.username}' join group '{group.name}'")
+    return group
+
+async def update_chat_members_in_elastic(es: AsyncElasticsearch, chat: ChatModel) -> None:
+    await es.update(
+        index=ELASTIC_CHATS_INDEX_NAME,
+        id=str(chat.uuid),
+        doc={
+            "members": get_chat_users_uuids(chat),
+        }
+    )

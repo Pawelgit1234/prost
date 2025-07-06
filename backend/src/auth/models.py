@@ -26,6 +26,7 @@ class UserModel(Base, TimestampMixin):
     # avatar will be set later in settings
     avatar: Mapped[str] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(default=False)
+    is_visible: Mapped[bool] = mapped_column(default=False) # search
 
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
     folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
