@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from src.chats.models import UserChatAssociationModel
     from src.folders.models import FolderModel
     from src.messages.models import MessageModel
+    from backend.src.join_requests.models import JoinRequestModel, InvitationModel
 
 class UserModel(Base, TimestampMixin):
     __tablename__ = 'users'
@@ -27,9 +28,13 @@ class UserModel(Base, TimestampMixin):
     avatar: Mapped[str] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(default=False)
     is_visible: Mapped[bool] = mapped_column(default=False) # search
+    is_open_for_messages: Mapped[bool] = mapped_column(default=False) # False = needs a join request
 
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
     folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
+    sent_join_requests: Mapped[list["JoinRequestModel"]] = relationship(back_populates="sender_user", foreign_keys="[JoinRequestModel.sender_user_id]")
+    received_join_requests: Mapped[list["JoinRequestModel"]] = relationship(back_populates="receiver_user", foreign_keys="[JoinRequestModel.receiver_user_id]")
+    invitations: Mapped[list["InvitationModel"]] = relationship(back_populates="user")
     email_activation_token: Mapped["EmailActivationTokenModel"] = relationship(
         back_populates="user", uselist=False
     )

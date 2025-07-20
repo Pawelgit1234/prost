@@ -12,6 +12,8 @@ from src.messages.models import *
 from src.auth.models import *
 from src.chats.models import *
 from src.folders.models import *
+from src.join_requests.models import *
+from src.invitations.models import *
 from src.database import Base
 
 config = context.config

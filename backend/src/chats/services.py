@@ -1,5 +1,4 @@
 from uuid import UUID
-import asyncio
 import logging
 
 from fastapi import HTTPException, status
@@ -15,14 +14,15 @@ from src.auth.models import UserModel
 from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.enums import ChatType
-from src.chats.utils import group_folders_by_type, invalidate_chat_cache, get_chat_users_uuids
+from src.chats.utils import group_folders_by_type, invalidate_chat_cache, get_group_users_uuids,\
+    is_user_in_chat
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 
 logger = logging.getLogger(__name__)
 
 # is shorter
-async def _get_chat_or_404(db: AsyncSession, chat_uuid: UUID) -> ChatModel:
+async def get_chat_or_404(db: AsyncSession, chat_uuid: UUID) -> ChatModel:
     return await get_object_or_404(
         db, ChatModel, ChatModel.uuid == chat_uuid, detail='Chat not found',
         options=[
@@ -43,7 +43,7 @@ async def create_chat_in_db(
 
     chat = ChatModel(
         chat_type=chat_info.chat_type,
-        name=chat_info.name,
+        name=None if chat_info.chat_type == ChatType.NORMAL else chat_info.name,
         description=chat_info.group_description,
     )
     db.add(chat)
@@ -86,7 +86,7 @@ async def create_chat_in_db(
     # commit and flush
     chat = (await save_to_db(db, [chat]))[0]
     # loads user and folder associations
-    chat = await _get_chat_or_404(db, chat.uuid)
+    chat = await get_chat_or_404(db, chat.uuid)
 
     logger.info(f"Chat '{chat.name}' created by '{current_user.username}'")
     return chat
@@ -95,19 +95,16 @@ async def delete_chat_in_db(
     db: AsyncSession,
     r: Redis,
     user: UserModel,
-    chat_uuid: UUID
+    chat: ChatModel
 ) -> None: 
-    chat = await _get_chat_or_404(db, chat_uuid)
-    user_ids = [assoc.user_id for assoc in chat.user_associations]
-
-    folders = [assoc.folder for assoc in chat.folder_associations]
-    await invalidate_chat_cache(r, *folders, user=user)
-
-    if user.id not in user_ids:
+    if not is_user_in_chat(user, chat):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail='Only group members can delete this chat'
         )
+
+    folders = [assoc.folder for assoc in chat.folder_associations]
+    await invalidate_chat_cache(r, *folders, user=user)
 
     await db.delete(chat)
     await db.commit()
@@ -117,52 +114,41 @@ async def quit_group_in_db(
     db: AsyncSession,
     r: Redis,
     current_user: UserModel,
-    chat_uuid: UUID
-) -> ChatModel:
-    chat = await _get_chat_or_404(db, chat_uuid)
-    folders = [assoc.folder for assoc in chat.folder_associations]
+    group: ChatModel
+) -> None:
+    folders = [assoc.folder for assoc in group.folder_associations]
     await invalidate_chat_cache(r, *folders, user=current_user)
 
     # quit group
-    for assoc in chat.user_associations:
+    for assoc in group.user_associations:
         if assoc.user_id == current_user.id:
             await db.delete(assoc)
-            logger.info(f"'{current_user.username}' quit group '{chat.name}'")
+            logger.info(f"'{current_user.username}' quit group '{group.name}'")
             break
     
     # remove from the folder
     await db.execute(
         delete(FolderChatAssociationModel)
         .where(
-            FolderChatAssociationModel.chat_id == chat.id,
+            FolderChatAssociationModel.chat_id == group.id,
             FolderChatAssociationModel.folder_id.in_(
                 select(FolderModel.id).where(FolderModel.user_id == current_user.id)
             )
         )
     )
     await db.commit()
-    logger.info(f"'{current_user.username}' quit group '{chat.name}'")
-    return chat
+    logger.info(f"'{current_user.username}' quit group '{group.name}'")
 
 async def add_user_to_group_in_db(
     db: AsyncSession,
     r: Redis,
-    group_uuid: UUID,
-    username: str,
-    current_user: UserModel,
+    group: ChatModel,
+    other_user: UserModel,
+    user: UserModel
 ) -> ChatModel:
     from src.folders.services import get_folders_list
-    # two requests 'parallel' are faster
-    group, user = await asyncio.gather(
-        _get_chat_or_404(db, group_uuid),
-        get_object_or_404(
-            db, UserModel, UserModel.username == username,
-            detail='User not found'
-        )
-    )
     
-    user_ids = [assoc.user_id for assoc in group.user_associations]
-    if current_user.id not in user_ids:
+    if not is_user_in_chat(user, group):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail='Only group members can add new users'
@@ -171,7 +157,7 @@ async def add_user_to_group_in_db(
     # checks if user already is member of the group
     existing = await db.execute(
         select(UserChatAssociationModel)
-        .where(UserChatAssociationModel.user_id == user.id,
+        .where(UserChatAssociationModel.user_id == other_user.id,
             UserChatAssociationModel.chat_id == group.id)
     )
     if existing.scalar_one_or_none() is not None:
@@ -180,23 +166,23 @@ async def add_user_to_group_in_db(
             detail="User is already a member of the group"
         )
 
-    folders = group_folders_by_type(await get_folders_list(db, user))
-    await invalidate_chat_cache(r, folders[FolderType.ALL], folders[FolderType.GROUPS], user=user)
+    folders = group_folders_by_type(await get_folders_list(db, other_user))
+    await invalidate_chat_cache(r, folders[FolderType.ALL], folders[FolderType.GROUPS], user=other_user)
 
-    chat_association = UserChatAssociationModel(user=user, chat=group)
+    chat_association = UserChatAssociationModel(user=other_user, chat=group)
     all_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.ALL], chat=group)
     group_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.GROUPS], chat=group)
     db.add_all([chat_association, all_folder_assoc, group_folder_assoc])
     await db.commit()
 
-    logger.info(f"'{user.username}' join group '{group.name}'")
+    logger.info(f"'{other_user.username}' join group '{group.name}'")
     return group
 
-async def update_chat_members_in_elastic(es: AsyncElasticsearch, chat: ChatModel) -> None:
+async def update_group_members_in_elastic(es: AsyncElasticsearch, chat: ChatModel) -> None:
     await es.update(
         index=ELASTIC_CHATS_INDEX_NAME,
         id=str(chat.uuid),
         doc={
-            "members": get_chat_users_uuids(chat),
+            "members": get_group_users_uuids(chat),
         }
     )

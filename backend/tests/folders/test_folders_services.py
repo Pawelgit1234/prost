@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from src.folders.services import get_chats_list_from_folder, create_folder_in_db, \
     delete_folder_in_db, add_chat_to_folder, delete_chat_from_folder, pin_chat_in_folder, \
-    _get_folder_chat_assoc_or_404
+    get_folder_chat_assoc_or_404
 from src.folders.schemas import CreateFolderSchema
 from src.folders.models import FolderModel
 from src.folders.enums import FolderType
@@ -97,7 +97,7 @@ async def test_add_chat_to_folder(get_db):
     await add_chat_to_folder(get_db, user, folder.uuid, chat.uuid)
 
     # if 404 is not raised, then is it ok
-    await _get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
+    await get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
 
 @pytest.mark.asyncio
 async def test_delete_chat_from_folder(get_db):
@@ -124,7 +124,7 @@ async def test_delete_chat_from_folder(get_db):
     await delete_chat_from_folder(get_db, user, folder.uuid, chat.uuid)
 
     with pytest.raises(HTTPException) as exc_info:
-        await _get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
+        await get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
 
     assert exc_info.value.status_code == 404
 

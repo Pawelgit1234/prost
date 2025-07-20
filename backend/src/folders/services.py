@@ -7,10 +7,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, desc, and_
 from sqlalchemy.orm import selectinload
 
-from src.utils import save_to_db, get_object_or_404
+from src.utils import save_to_db
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.chats.schemas import ChatSchema
+from src.chats.utils import is_user_in_chat
 from src.folders.models import FolderModel, FolderChatAssociationModel
 from src.folders.schemas import CreateFolderSchema
 from src.folders.enums import FolderType
@@ -18,7 +19,7 @@ from src.folders.enums import FolderType
 logger = logging.getLogger(__name__)
 
 # already protects the user with by checking the user id
-async def _get_folder_chat_assoc_or_404(
+async def get_folder_chat_assoc_or_404(
     db: AsyncSession,
     user: UserModel,
     folder_uuid: UUID,
@@ -117,13 +118,8 @@ async def create_folder_in_db(
 async def delete_folder_in_db(
     db: AsyncSession,
     user: UserModel,
-    folder_uuid: UUID
+    folder: FolderModel
 ) -> None:
-    folder = await get_object_or_404(
-        db, FolderModel, FolderModel.uuid == folder_uuid,
-        detail='Folder not found'
-    )
-
     if folder.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -143,19 +139,10 @@ async def delete_folder_in_db(
 async def add_chat_to_folder(
     db: AsyncSession,
     user: UserModel,
-    folder_uuid: UUID,
-    chat_uuid: UUID
+    folder: FolderModel,
+    chat: ChatModel
 ) -> None:
-    folder = await get_object_or_404(
-        db, FolderModel, FolderModel.uuid == folder_uuid, detail='Folder not found'
-    )
-    chat = await get_object_or_404(
-        db, ChatModel, ChatModel.uuid == chat_uuid, detail='Chat not found',
-        options=[selectinload(ChatModel.user_associations)]
-    )
-
-    user_ids = [assoc.user_id for assoc in chat.user_associations]
-    if user.id not in user_ids or folder.user_id != user.id:
+    if not is_user_in_chat(user, chat) or folder.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail='Chat or folder not accessible'
@@ -180,12 +167,8 @@ async def add_chat_to_folder(
 
 async def delete_chat_from_folder(
     db: AsyncSession,
-    user: UserModel,
-    folder_uuid: UUID,
-    chat_uuid: UUID
+    assoc: FolderChatAssociationModel
 ) -> None:
-    assoc = await _get_folder_chat_assoc_or_404(db, user, folder_uuid, chat_uuid)
-
     if assoc.folder.folder_type != FolderType.CUSTOM:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -198,11 +181,8 @@ async def delete_chat_from_folder(
 # True - was pinned up | False - was unpinned
 async def pin_chat_in_folder(
     db: AsyncSession,
-    user: UserModel,
-    folder_uuid: UUID,
-    chat_uuid: UUID
+    assoc: FolderChatAssociationModel
 ) -> bool:
-    assoc = await _get_folder_chat_assoc_or_404(db, user, folder_uuid, chat_uuid)
     assoc.is_pinned = not assoc.is_pinned
     await db.commit()
 

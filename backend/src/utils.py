@@ -1,5 +1,7 @@
 from typing import Iterable, Sequence
+import json
 
+from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeMeta, Load
@@ -34,6 +36,35 @@ async def get_object_or_404(
     
     return obj
 
+async def get_all_objects(
+    db: AsyncSession,
+    model: type[DeclarativeMeta],
+    condition: ClauseElement,
+    *,
+    options: Sequence[Load] | None = None,
+) -> list[DeclarativeMeta]:
+    stmt = select(model).where(condition)
+
+    if options:
+        stmt = stmt.options(*options)
+
+    result = await db.execute(stmt)
+    objects = result.scalars().all()
+    return objects
+
 async def invalidate_cache(r: Redis, key: str, *args) -> None:
     key = key.format(*args)
     await r.delete(key)
+
+def serialize_model_list(models: list, schema: BaseModel) -> list[dict]:
+    """ Turns models into dicts """
+    return [
+        json.loads(schema.model_validate(obj).model_dump_json())
+        for obj in models
+    ]
+
+def wrap_list_response(items: list) -> dict:
+    return {
+        'total': len(items),
+        'items': items
+    }
