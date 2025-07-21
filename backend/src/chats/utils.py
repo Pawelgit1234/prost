@@ -2,9 +2,10 @@ import asyncio
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from elasticsearch import AsyncElasticsearch
 from redis.asyncio import Redis
 
-from src.settings import REDIS_CHATS_KEY
+from src.settings import REDIS_CHATS_KEY, ELASTIC_CHATS_INDEX_NAME
 from src.utils import invalidate_cache
 from src.auth.models import UserModel
 from src.folders.models import FolderModel
@@ -35,3 +36,12 @@ async def get_common_chats(
     common_chat_ids = user_chat_ids & other_user_chat_ids # [1, 2, 3] & [2, 3, 4] => [2, 3]
     result = await db.execute(select(ChatModel).where(ChatModel.id.in_(common_chat_ids)))
     return result.scalars().all()
+
+async def update_group_members_in_elastic(es: AsyncElasticsearch, chat: ChatModel) -> None:
+    await es.update(
+        index=ELASTIC_CHATS_INDEX_NAME,
+        id=str(chat.uuid),
+        doc={
+            "members": get_group_users_uuids(chat),
+        }
+    )

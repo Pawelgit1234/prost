@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from elasticsearch import AsyncElasticsearch
 
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
-    quit_group_in_db, add_user_to_group_in_db, update_group_members_in_elastic, get_chat_or_404
+    quit_group_in_db, add_user_to_group_in_db, get_chat_or_404
 from src.chats.utils import get_group_users_uuids
 from src.chats.schemas import CreateChatSchema, ChatSchema
 from src.dependencies import get_active_current_user
@@ -68,8 +68,7 @@ async def quit_group(
     group_uuid: UUID
 ):
     group = await get_chat_or_404(db, group_uuid)
-    await quit_group_in_db(db, r, current_user, group)
-    await update_group_members_in_elastic(es, group)
+    await quit_group_in_db(db, r, es, current_user, group)
     return {'success': True}
 
 @router.post('{group_uuid}/add_user')
@@ -90,6 +89,5 @@ async def add_user_to_group(
         )
     )
 
-    group = await add_user_to_group_in_db(db, r, group, other_user, current_user)
-    await update_group_members_in_elastic(es, group)
+    group = await add_user_to_group_in_db(db, r, es, group, other_user, current_user)
     return {'success': True}

@@ -27,7 +27,7 @@ class JoinRequestModel(Base, TimestampMixin):
 
     join_request_type: Mapped[JoinRequestType]
 
-    # Use who sends a request
+    # User sends a join request
     sender_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     sender_user: Mapped["UserModel"] = relationship(back_populates="sent_join_requests", foreign_keys=[sender_user_id])
     # Group or a User receives it

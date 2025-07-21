@@ -15,7 +15,7 @@ from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.enums import ChatType
 from src.chats.utils import group_folders_by_type, invalidate_chat_cache, get_group_users_uuids,\
-    is_user_in_chat
+    is_user_in_chat, update_group_members_in_elastic
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 
@@ -113,6 +113,7 @@ async def delete_chat_in_db(
 async def quit_group_in_db(
     db: AsyncSession,
     r: Redis,
+    es: AsyncElasticsearch,
     current_user: UserModel,
     group: ChatModel
 ) -> None:
@@ -137,11 +138,15 @@ async def quit_group_in_db(
         )
     )
     await db.commit()
+
+    await update_group_members_in_elastic(es, group)
+
     logger.info(f"'{current_user.username}' quit group '{group.name}'")
 
 async def add_user_to_group_in_db(
     db: AsyncSession,
     r: Redis,
+    es: AsyncElasticsearch,
     group: ChatModel,
     other_user: UserModel,
     user: UserModel
@@ -175,14 +180,7 @@ async def add_user_to_group_in_db(
     db.add_all([chat_association, all_folder_assoc, group_folder_assoc])
     await db.commit()
 
+    await update_group_members_in_elastic(es, group)
+
     logger.info(f"'{other_user.username}' join group '{group.name}'")
     return group
-
-async def update_group_members_in_elastic(es: AsyncElasticsearch, chat: ChatModel) -> None:
-    await es.update(
-        index=ELASTIC_CHATS_INDEX_NAME,
-        id=str(chat.uuid),
-        doc={
-            "members": get_group_users_uuids(chat),
-        }
-    )

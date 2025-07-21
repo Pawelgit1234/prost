@@ -22,7 +22,7 @@ async def get_all_group_join_requests_list(
     if not is_user_in_chat(user, group):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='Only group members can get all join requests'
+            detail='Only group members can get join requests'
         )
 
     join_requests = await get_all_objects(
@@ -62,7 +62,7 @@ async def create_join_request_in_db(
             detail='Group not found'
         )
 
-        if is_user_in_chat(user, join_request.group):
+        if is_user_in_chat(user, target):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='You already in the group'

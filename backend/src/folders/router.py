@@ -33,7 +33,8 @@ async def get_all_folders(
     r: Annotated[Redis, Depends(get_redis)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
 ):
-    if data := await r.get(REDIS_FOLDERS_KEY.format(str(current_user.uuid))):
+    redis_key = REDIS_FOLDERS_KEY.format(str(current_user.uuid))
+    if data := await r.get(redis_key):
         return json.loads(data)
 
     folder_models = await get_folders_list(db, current_user)
@@ -41,11 +42,11 @@ async def get_all_folders(
     data = wrap_list_response(folders)
 
     await r.set(
-        REDIS_FOLDERS_KEY.format(str(current_user.uuid)),
+        redis_key,
         json.dumps(data),
         REDIS_CACHE_EXPIRE_SECONDS
     )
-    
+
     return data
 
 @router.get('/{folder_uuid}/')
@@ -55,7 +56,8 @@ async def get_chats_from_folder(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     folder_uuid: UUID
 ):
-    if data := await r.get(REDIS_CHATS_KEY.format(str(folder_uuid), str(current_user.uuid))):
+    redis_key = REDIS_CHATS_KEY.format(str(folder_uuid, current_user.uuid))
+    if data := await r.get(redis_key):
         return json.loads(data)
 
     chat_models = await get_chats_list_from_folder(db, current_user, folder_uuid)
@@ -63,7 +65,7 @@ async def get_chats_from_folder(
     data = wrap_list_response(chats)
 
     await r.set(
-        REDIS_CHATS_KEY.format(str(folder_uuid), str(current_user.uuid)),
+        redis_key,
         json.dumps(data),
         REDIS_CACHE_EXPIRE_SECONDS
     )
