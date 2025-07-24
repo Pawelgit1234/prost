@@ -33,7 +33,7 @@ async def get_common_chats(
 ) -> list[ChatModel]:
     user_chat_ids = [assoc.chat_id for assoc in user.chat_associations]
     other_user_chat_ids = [assoc.chat_id for assoc in other_user.chat_associations]
-    common_chat_ids = user_chat_ids & other_user_chat_ids # [1, 2, 3] & [2, 3, 4] => [2, 3]
+    common_chat_ids = list(set(user_chat_ids) & set(other_user_chat_ids)) # [1, 2, 3] & [2, 3, 4] => [2, 3]
     result = await db.execute(select(ChatModel).where(ChatModel.id.in_(common_chat_ids)))
     return result.scalars().all()
 

@@ -10,7 +10,8 @@ if TYPE_CHECKING:
     from src.chats.models import UserChatAssociationModel
     from src.folders.models import FolderModel
     from src.messages.models import MessageModel
-    from backend.src.join_requests.models import JoinRequestModel, InvitationModel
+    from src.join_requests.models import JoinRequestModel
+    from src.invitations.models import InvitationModel
 
 class UserModel(Base, TimestampMixin):
     __tablename__ = 'users'
@@ -45,6 +46,7 @@ class UserModel(Base, TimestampMixin):
 # I do not know why, but without this it just do not work
 from src.messages.models import MessageModel
 from src.folders.models import FolderModel
+from src.invitations.models import InvitationModel
 
 class EmailActivationTokenModel(Base, TimestampMixin):
     __tablename__ = 'email_activation_tokens'

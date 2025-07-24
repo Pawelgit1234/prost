@@ -32,6 +32,6 @@ class JoinRequestModel(Base, TimestampMixin):
     sender_user: Mapped["UserModel"] = relationship(back_populates="sent_join_requests", foreign_keys=[sender_user_id])
     # Group or a User receives it
     group_id: Mapped[int] = mapped_column(ForeignKey("chats.id"), nullable=True)
-    group: Mapped["ChatModel"] = relationship(back_populates="join_requests")
+    group: Mapped["ChatModel"] = relationship(back_populates="received_join_requests")
     receiver_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
     receiver_user: Mapped["UserModel"] = relationship(back_populates="received_join_requests", foreign_keys=[receiver_user_id])

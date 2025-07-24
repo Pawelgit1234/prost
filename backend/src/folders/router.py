@@ -33,7 +33,7 @@ async def get_all_folders(
     r: Annotated[Redis, Depends(get_redis)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
 ):
-    redis_key = REDIS_FOLDERS_KEY.format(str(current_user.uuid))
+    redis_key = REDIS_FOLDERS_KEY.format(current_user.uuid)
     if data := await r.get(redis_key):
         return json.loads(data)
 
@@ -56,7 +56,7 @@ async def get_chats_from_folder(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     folder_uuid: UUID
 ):
-    redis_key = REDIS_CHATS_KEY.format(str(folder_uuid, current_user.uuid))
+    redis_key = REDIS_CHATS_KEY.format(folder_uuid, current_user.uuid)
     if data := await r.get(redis_key):
         return json.loads(data)
 

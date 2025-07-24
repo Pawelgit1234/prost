@@ -1,7 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from redis.asyncio import Redis
+from elasticsearch import AsyncElasticsearch
 
 from src.utils import save_to_db, get_object_or_404, get_all_objects
 from src.auth.models import UserModel
@@ -26,7 +27,8 @@ async def get_all_group_join_requests_list(
         )
 
     join_requests = await get_all_objects(
-        db, JoinRequestModel, JoinRequestModel.group_id == group.id
+        db, JoinRequestModel, JoinRequestModel.group_id == group.id,
+        options=[selectinload(JoinRequestModel.sender_user), selectinload(JoinRequestModel.group)]
     )
 
     return join_requests
@@ -37,15 +39,16 @@ async def create_join_request_in_db(
     join_request_info: CreateJoinRequestSchema
 ) -> JoinRequestModel:
     if join_request_info.join_request_type == JoinRequestType.USER:
+        # target = other user
         target = await get_object_or_404(
             db, UserModel, UserModel.uuid == join_request_info.target_uuid,
-            detail='User not found'
+            detail='User not found', options=[selectinload(UserModel.chat_associations)]
         )
-
+        await db.refresh(user, ['chat_associations']) # loads chat_assoc
+        
         # checks if user has a normal chat with other user
         common_chats = await get_common_chats(db, user, target)
         chat_types = [chat.chat_type for chat in common_chats]
-        
         if ChatType.NORMAL in chat_types:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -57,9 +60,11 @@ async def create_join_request_in_db(
             join_request_type=join_request_info.join_request_type
         )
     elif join_request_info.join_request_type == JoinRequestType.GROUP:
+        # target = group
         target = await get_object_or_404(
             db, ChatModel, ChatModel.uuid == join_request_info.target_uuid,
-            detail='Group not found'
+            detail='Group not found',
+            options=[selectinload(ChatModel.user_associations)]
         )
 
         if is_user_in_chat(user, target):
@@ -80,16 +85,12 @@ async def create_join_request_in_db(
         )
     
     join_request = (await save_to_db(db, [join_request]))[0]
-
-    user.sent_join_requests = join_request
-    target.received_join_requests = join_request
-
-    await db.commit()
     return join_request
 
 async def approve_join_request_in_db(
     db: AsyncSession,
     r: Redis,
+    es: AsyncElasticsearch,
     user: UserModel,
     join_request: JoinRequestModel,
 ) -> None:
@@ -106,7 +107,7 @@ async def approve_join_request_in_db(
         ))
     elif join_request.join_request_type == JoinRequestType.GROUP:
         # already checks if receiver in the group
-        await add_user_to_group_in_db(db, r, join_request.group, join_request.sender_user, user)
+        await add_user_to_group_in_db(db, r, es, join_request.group, join_request.sender_user, user)
     
     await db.delete(join_request)
     await db.commit()
