@@ -89,7 +89,7 @@ async def get_last_position(db: AsyncSession, user: UserModel) -> int:
         .order_by(desc(FolderModel.position))
         .limit(1)
     )
-    return result.scalar_one_or_none() or -1
+    return result.scalar_one_or_none() or 0
 
 async def reorder_folders_after_deletion(db: AsyncSession, user: UserModel) -> None:
     folders = await get_folders_list(db, user)
@@ -133,8 +133,9 @@ async def delete_folder_in_db(
         )
         
     await db.delete(folder)
-    logger.info(f'Folder {folder.name} deleted')
     await db.commit()
+    await reorder_folders_after_deletion(db, user)
+    logger.info(f'Folder {folder.name} deleted')
 
 async def add_chat_to_folder(
     db: AsyncSession,

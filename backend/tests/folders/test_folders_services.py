@@ -36,7 +36,7 @@ async def test_get_chats_list_from_folder(get_db):
     )
     mock_redis = AsyncMock()
     chat = await create_chat_in_db(get_db, mock_redis, user, chat_info)
-    await add_chat_to_folder(get_db, user, folder.uuid, chat.uuid)
+    await add_chat_to_folder(get_db, user, folder, chat)
 
     folders = await get_chats_list_from_folder(get_db, user, folder.uuid)
     assert len(folders) == 1
@@ -68,7 +68,7 @@ async def test_delete_folder_in_db(get_db):
     )
     user = await create_user(get_db, user_data)
     folder = await create_folder_in_db(get_db, user, CreateFolderSchema(name='folder'))
-    await delete_folder_in_db(get_db, user, folder.uuid)
+    await delete_folder_in_db(get_db, user, folder)
     
     # checks if the chat exists
     result = await get_db.execute(select(FolderModel).where(FolderModel.id == folder.id))
@@ -94,7 +94,7 @@ async def test_add_chat_to_folder(get_db):
     )
     mock_redis = AsyncMock()
     chat = await create_chat_in_db(get_db, mock_redis, user, chat_info)
-    await add_chat_to_folder(get_db, user, folder.uuid, chat.uuid)
+    await add_chat_to_folder(get_db, user, folder, chat)
 
     # if 404 is not raised, then is it ok
     await get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
@@ -120,8 +120,9 @@ async def test_delete_chat_from_folder(get_db):
     mock_redis = AsyncMock()
     chat = await create_chat_in_db(get_db, mock_redis, user, chat_info)
 
-    await add_chat_to_folder(get_db, user, folder.uuid, chat.uuid)
-    await delete_chat_from_folder(get_db, user, folder.uuid, chat.uuid)
+    await add_chat_to_folder(get_db, user, folder, chat)
+    assoc = await get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
+    await delete_chat_from_folder(get_db, assoc)
 
     with pytest.raises(HTTPException) as exc_info:
         await get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
@@ -148,13 +149,15 @@ async def test_pin_chat_in_folder(get_db):
     )
     mock_redis = AsyncMock()
     chat = await create_chat_in_db(get_db, mock_redis, user, chat_info)
-    await add_chat_to_folder(get_db, user, folder.uuid, chat.uuid)
+    await add_chat_to_folder(get_db, user, folder, chat)
 
+    assoc = await get_folder_chat_assoc_or_404(get_db, user, folder.uuid, chat.uuid)
+    
     # pinned
-    is_pinned = await pin_chat_in_folder(get_db, user, folder.uuid, chat.uuid)
+    is_pinned = await pin_chat_in_folder(get_db, assoc)
     assert is_pinned
 
     # unpinned
-    is_pinned = await pin_chat_in_folder(get_db, user, folder.uuid, chat.uuid)
+    is_pinned = await pin_chat_in_folder(get_db, assoc)
     assert not is_pinned
  

@@ -19,9 +19,8 @@ from src.chats.models import ChatModel
 from src.folders.models import FolderModel
 from src.folders.schemas import CreateFolderSchema, FolderSchema
 from src.folders.services import create_folder_in_db, delete_folder_in_db, \
-    reorder_folders_after_deletion, get_folders_list, add_chat_to_folder, \
-    delete_chat_from_folder, pin_chat_in_folder, get_chats_list_from_folder, \
-    get_folder_chat_assoc_or_404
+    get_folders_list, add_chat_to_folder, delete_chat_from_folder, \
+    pin_chat_in_folder, get_chats_list_from_folder, get_folder_chat_assoc_or_404
     
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,6 @@ async def delete_folder(
     )
 
     await delete_folder_in_db(db, current_user, folder)
-    await reorder_folders_after_deletion(db, current_user)
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     return {'success': True}
 

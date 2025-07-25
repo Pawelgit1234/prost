@@ -35,7 +35,7 @@ async def get_all_group_join_requests_list(
 
 async def create_join_request_in_db(
     db: AsyncSession,
-    user: UserModel,
+    sender_user: UserModel,
     join_request_info: CreateJoinRequestSchema
 ) -> JoinRequestModel:
     if join_request_info.join_request_type == JoinRequestType.USER:
@@ -44,10 +44,10 @@ async def create_join_request_in_db(
             db, UserModel, UserModel.uuid == join_request_info.target_uuid,
             detail='User not found', options=[selectinload(UserModel.chat_associations)]
         )
-        await db.refresh(user, ['chat_associations']) # loads chat_assoc
+        await db.refresh(sender_user, ['chat_associations']) # loads chat_assoc
         
         # checks if user has a normal chat with other user
-        common_chats = await get_common_chats(db, user, target)
+        common_chats = await get_common_chats(db, sender_user, target)
         chat_types = [chat.chat_type for chat in common_chats]
         if ChatType.NORMAL in chat_types:
             raise HTTPException(
@@ -56,7 +56,7 @@ async def create_join_request_in_db(
             )
         
         join_request = JoinRequestModel(
-            sender_user=user, receiver_user=target,
+            sender_user=sender_user, receiver_user=target,
             join_request_type=join_request_info.join_request_type
         )
     elif join_request_info.join_request_type == JoinRequestType.GROUP:
@@ -67,14 +67,14 @@ async def create_join_request_in_db(
             options=[selectinload(ChatModel.user_associations)]
         )
 
-        if is_user_in_chat(user, target):
+        if is_user_in_chat(sender_user, target):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='You already in the group'
             )
 
         join_request = JoinRequestModel(
-            sender_user=user, group=target,
+            sender_user=sender_user, group=target,
             join_request_type=join_request_info.join_request_type
         )
     

@@ -17,7 +17,7 @@ class JoinRequestModel(Base, TimestampMixin):
 
     __table_args__ = (
         CheckConstraint(
-            'chat_id IS NOT NULL OR receiver_user_id IS NOT NULL',
+            'group_id IS NOT NULL OR receiver_user_id IS NOT NULL',
             name='check_invitation_has_target'
         ),
     )

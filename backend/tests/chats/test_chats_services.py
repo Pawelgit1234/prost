@@ -82,7 +82,7 @@ async def test_delete_chat_in_db(get_db):
 
     mock_redis = AsyncMock()
     chat = await create_chat_in_db(get_db, mock_redis, user, chat_info)
-    await delete_chat_in_db(get_db, mock_redis, user, chat.uuid)
+    await delete_chat_in_db(get_db, mock_redis, user, chat)
 
     # checks if the chat exists
     result = await get_db.execute(select(ChatModel).where(ChatModel.id == chat.id))
