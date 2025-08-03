@@ -7,6 +7,8 @@ DATABASE_URL = (
     f"{os.environ['DB_PASSWORD']}@db:5432/{os.environ['DB_NAME']}"
 )
 
+INVITATION_CLEANING_SLEEP_TIME = 5 * 60 # 5 minutes
+
 REDIS_HOST = 'redis'
 REDIS_PORT = 6379
 REDIS_CACHE_EXPIRE_SECONDS = 60 * 60 # 1 hour
