@@ -1,12 +1,16 @@
 from typing import Iterable, Sequence
+from io import BytesIO
 import json
 
 from pydantic import BaseModel
+import qrcode.constants
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeMeta, Load
 from sqlalchemy import select, ClauseElement
 from fastapi import HTTPException, status
+import qrcode
+from PIL import Image
 
 async def save_to_db(db: AsyncSession, instances: Iterable[object]):
     db.add_all(instances)

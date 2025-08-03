@@ -15,7 +15,7 @@ from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.enums import ChatType
 from src.chats.utils import group_folders_by_type, invalidate_chat_cache, get_group_users_uuids,\
-    is_user_in_chat, update_group_members_in_elastic
+    is_user_in_chat, update_group_members_in_elastic, ensure_no_normal_chat_or_403
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 
@@ -61,8 +61,10 @@ async def create_chat_in_db(
         chats_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.CHATS], chat=chat)
         other_user = await get_object_or_404(
             db, UserModel, UserModel.username == chat_info.name,
-            detail='User not found'
+            detail='User not found',
+            options=[selectinload(UserModel.chat_associations)]
         )
+        await ensure_no_normal_chat_or_403(db, current_user, other_user)
 
         # add chat in folders from other users
         other_folders = group_folders_by_type(await get_folders_list(db, other_user))

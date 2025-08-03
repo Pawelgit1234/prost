@@ -41,7 +41,9 @@ class ChatModel(Base, TimestampMixin):
     received_join_requests: Mapped[list["JoinRequestModel"]] = relationship(
         back_populates="group", cascade='all, delete-orphan'
     )
-    invitations: Mapped[list["InvitationModel"]] = relationship(back_populates="chat")
+    invitations: Mapped[list["InvitationModel"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan"
+    )
     folder_associations: Mapped[list["FolderChatAssociationModel"]] = relationship(
         back_populates='chat', cascade='all, delete-orphan'
     )

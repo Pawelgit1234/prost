@@ -33,7 +33,7 @@ async def get_all_user_join_requests(
     r: Annotated[Redis, Depends(get_redis)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
 ):
-    redis_key = REDIS_USER_JOIN_REQUESTS_KEY.format(str(current_user.uuid))
+    redis_key = REDIS_USER_JOIN_REQUESTS_KEY.format(current_user.uuid)
     if data := await r.get(redis_key):
         return json.loads(data)
 
@@ -58,7 +58,7 @@ async def get_all_group_join_requests(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     group_uuid: UUID
 ):
-    redis_key = REDIS_GROUP_JOIN_REQUESTS_KEY.format(str(group_uuid))
+    redis_key = REDIS_GROUP_JOIN_REQUESTS_KEY.format(group_uuid)
     if data := await r.get(redis_key):
         return json.loads(data)
 

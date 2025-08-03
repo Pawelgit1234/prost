@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from elasticsearch import AsyncElasticsearch
 from redis.asyncio import Redis
+from fastapi import HTTPException, status
 
 from src.settings import REDIS_CHATS_KEY, ELASTIC_CHATS_INDEX_NAME
 from src.utils import invalidate_cache
@@ -11,6 +12,7 @@ from src.auth.models import UserModel
 from src.folders.models import FolderModel
 from src.folders.enums import FolderType
 from src.chats.models import ChatModel
+from src.chats.enums import ChatType
 
 def group_folders_by_type(folders: list[FolderModel]) -> dict[FolderType, FolderModel]:
     return {f.folder_type: f for f in folders}
@@ -36,6 +38,19 @@ async def get_common_chats(
     common_chat_ids = list(set(user_chat_ids) & set(other_user_chat_ids)) # [1, 2, 3] & [2, 3, 4] => [2, 3]
     result = await db.execute(select(ChatModel).where(ChatModel.id.in_(common_chat_ids)))
     return result.scalars().all()
+
+async def ensure_no_normal_chat_or_403(
+    db: AsyncSession,
+    user: UserModel,
+    other_user: UserModel
+) -> None:
+    common_chats = await get_common_chats(db, user, other_user)
+    chat_types = [chat.chat_type for chat in common_chats]
+    if ChatType.NORMAL in chat_types:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You already have a normal chat with user'
+        )
 
 async def update_group_members_in_elastic(es: AsyncElasticsearch, chat: ChatModel) -> None:
     await es.update(

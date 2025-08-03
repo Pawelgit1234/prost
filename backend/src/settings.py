@@ -14,6 +14,8 @@ REDIS_FOLDERS_KEY = 'folders_{}' # 'folders_{user_uuid}'
 REDIS_CHATS_KEY = 'chats_{}_{}' # 'chats_{folder_uuid}_{user_uuid}'
 REDIS_USER_JOIN_REQUESTS_KEY = 'user_join_requests_{}' # 'user_join_requests_{user_uuid}'
 REDIS_GROUP_JOIN_REQUESTS_KEY = 'group_join_requests_{}' # 'group_join_requests_{group_uuid}'
+REDIS_USER_INVITATION_KEY = 'user_invitation_{}' # 'user_invitation_{user_uuid}'
+REDIS_GROUP_INVITATION_KEY = 'group_invitation_{}' # 'group_invitation_{group_uuid}'
 REDIS_SEARCH_HISTORY_KEY = 'search_history_{}' # 'history_{user_uuid}'
 SEARCH_HISTORY_SIZE = 100
 

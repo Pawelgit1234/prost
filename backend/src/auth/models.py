@@ -33,9 +33,15 @@ class UserModel(Base, TimestampMixin):
 
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
     folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
-    sent_join_requests: Mapped[list["JoinRequestModel"]] = relationship(back_populates="sender_user", foreign_keys="[JoinRequestModel.sender_user_id]")
-    received_join_requests: Mapped[list["JoinRequestModel"]] = relationship(back_populates="receiver_user", foreign_keys="[JoinRequestModel.receiver_user_id]")
-    invitations: Mapped[list["InvitationModel"]] = relationship(back_populates="user")
+    sent_join_requests: Mapped[list["JoinRequestModel"]] = relationship(
+        back_populates="sender_user", foreign_keys="[JoinRequestModel.sender_user_id]"
+    )
+    received_join_requests: Mapped[list["JoinRequestModel"]] = relationship(
+        back_populates="receiver_user", foreign_keys="[JoinRequestModel.receiver_user_id]"
+    )
+    invitations: Mapped[list["InvitationModel"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     email_activation_token: Mapped["EmailActivationTokenModel"] = relationship(
         back_populates="user", uselist=False
     )

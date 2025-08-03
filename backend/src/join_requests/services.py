@@ -9,7 +9,7 @@ from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.chats.schemas import CreateChatSchema
 from src.chats.enums import ChatType
-from src.chats.utils import is_user_in_chat, get_common_chats
+from src.chats.utils import is_user_in_chat, ensure_no_normal_chat_or_403
 from src.chats.services import add_user_to_group_in_db, create_chat_in_db
 from src.join_requests.models import JoinRequestModel
 from src.join_requests.enums import JoinRequestType
@@ -47,13 +47,7 @@ async def create_join_request_in_db(
         await db.refresh(sender_user, ['chat_associations']) # loads chat_assoc
         
         # checks if user has a normal chat with other user
-        common_chats = await get_common_chats(db, sender_user, target)
-        chat_types = [chat.chat_type for chat in common_chats]
-        if ChatType.NORMAL in chat_types:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='You already have a normal chat with user'
-            )
+        await ensure_no_normal_chat_or_403(db, sender_user, target)
         
         join_request = JoinRequestModel(
             sender_user=sender_user, receiver_user=target,

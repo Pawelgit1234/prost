@@ -1,5 +1,9 @@
 from enum import Enum
 
+class InvitationType(Enum):
+    USER = 'user'
+    GROUP = 'group'
+
 class InvitationLifetime(Enum):
     TEN_MINUTES = '10m'
     ONE_HOUR = '1h'
