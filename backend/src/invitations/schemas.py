@@ -17,7 +17,9 @@ class CreateInvitationSchema(BaseModel):
             raise ValueError("User invitation cannot have group_uuid")
         return self
 
-class InvitationSchema(CreateInvitationSchema):
+class InvitationSchema(BaseModel):
+    lifetime: InvitationLifetime
+    max_uses: int | None = Field(default=None, gt=0) # greater than 0 or null
     uuid: UUID # on fronted will be generate link and qr code
 
     model_config = ConfigDict(from_attributes=True)

@@ -9,7 +9,7 @@ class CreateJoinRequestSchema(BaseModel):
     target_uuid: UUID # UUID of User or Group
     join_request_type: JoinRequestType # type of join request
 
-class JoinRequestSchema(CreateJoinRequestSchema):
+class JoinRequestSchema(BaseModel):
     uuid: UUID
     sender_user_uuid: UUID
 

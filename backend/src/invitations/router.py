@@ -18,6 +18,7 @@ from src.utils import get_all_objects, get_object_or_404, wrap_list_response, \
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.invitations.models import InvitationModel
+from src.invitations.enums import InvitationType
 from src.invitations.services import create_invitation_in_db, get_all_group_invitations_list, \
     delete_invitation_in_db, use_invitation
 from src.invitations.schemas import InvitationSchema, CreateInvitationSchema
@@ -84,7 +85,11 @@ async def create_invitation(
 ):
     invitation = await create_invitation_in_db(db, current_user, invitation_info)
 
-    url = f'{HOST}/invitations/?{invitation.uuid}'
+    if invitation.invitation_type == InvitationType.USER:
+        await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)
+    elif invitation.invitation_type == InvitationType.GROUP:
+        await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation.group.uuid)
+
     return InvitationSchema.model_validate(invitation)
 
 @router.delete('/')
@@ -104,6 +109,12 @@ async def delete_invitation(
     )
 
     await delete_invitation_in_db(db, current_user, invitation)
+
+    if invitation.invitation_type == InvitationType.USER:
+        await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)
+    elif invitation.invitation_type == InvitationType.GROUP:
+        await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation.group.uuid)
+
     return {'success': True}
 
 @router.get('/join/')
@@ -123,4 +134,10 @@ async def join_via_invitation(
     )
 
     await use_invitation(db, current_user, invitation)
+
+    if invitation.invitation_type == InvitationType.USER:
+        await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)
+    elif invitation.invitation_type == InvitationType.GROUP:
+        await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation.group.uuid)
+
     return {'success': True}
