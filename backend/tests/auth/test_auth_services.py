@@ -3,6 +3,7 @@ import uuid
 import pytest
 from fastapi import HTTPException
 
+from tests.utils import create_user1
 from src.auth.schemas import UserRegisterSchema
 from src.auth.services import create_user, authenticate_user, create_email_activation_token, \
     activate_user
@@ -42,16 +43,7 @@ async def test_invalid_user_auth(get_db):
 
 @pytest.mark.asyncio
 async def test_valid_user_activation(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-
-    user = await create_user(get_db, user_data)
+    user = await create_user1(get_db)
     token = await create_email_activation_token(get_db, user)
     activated_user = await activate_user(get_db, token.uuid, user)
 
@@ -59,17 +51,7 @@ async def test_valid_user_activation(get_db):
 
 @pytest.mark.asyncio
 async def test_invalid_user_activation(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-
-    user = await create_user(get_db, user_data)
-
+    user = await create_user1(get_db)
     with pytest.raises(HTTPException) as exc_info:
         await activate_user(get_db, uuid.uuid4(), user)
 

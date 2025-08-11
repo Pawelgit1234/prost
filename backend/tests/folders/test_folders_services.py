@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 from fastapi import HTTPException
 
+from tests.utils import create_user1
 from src.folders.services import get_chats_list_from_folder, create_folder_in_db, \
     delete_folder_in_db, add_chat_to_folder, delete_chat_from_folder, pin_chat_in_folder, \
     get_folder_chat_assoc_or_404
@@ -18,15 +19,7 @@ from src.auth.services import create_user
 
 @pytest.mark.asyncio
 async def test_get_chats_list_from_folder(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-    user = await create_user(get_db, user_data)
+    user = await create_user1(get_db)
     folder = await create_folder_in_db(get_db, user, CreateFolderSchema(name='folder'))
 
     chat_info = CreateChatSchema(
@@ -43,30 +36,14 @@ async def test_get_chats_list_from_folder(get_db):
     
 @pytest.mark.asyncio
 async def test_create_folder_in_db(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-    user = await create_user(get_db, user_data)
+    user = await create_user1(get_db)
     folder = await create_folder_in_db(get_db, user, CreateFolderSchema(name='folder'))
 
     assert folder.folder_type == FolderType.CUSTOM
 
 @pytest.mark.asyncio
 async def test_delete_folder_in_db(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-    user = await create_user(get_db, user_data)
+    user = await create_user1(get_db)
     folder = await create_folder_in_db(get_db, user, CreateFolderSchema(name='folder'))
     await delete_folder_in_db(get_db, user, folder)
     
@@ -76,15 +53,7 @@ async def test_delete_folder_in_db(get_db):
 
 @pytest.mark.asyncio
 async def test_add_chat_to_folder(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-    user = await create_user(get_db, user_data)
+    user = await create_user1(get_db)
     folder = await create_folder_in_db(get_db, user, CreateFolderSchema(name='folder'))
     
     chat_info = CreateChatSchema(
@@ -101,15 +70,7 @@ async def test_add_chat_to_folder(get_db):
 
 @pytest.mark.asyncio
 async def test_delete_chat_from_folder(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-    user = await create_user(get_db, user_data)
+    user = await create_user1(get_db)
     folder = await create_folder_in_db(get_db, user, CreateFolderSchema(name='folder'))
     
     chat_info = CreateChatSchema(
@@ -131,15 +92,7 @@ async def test_delete_chat_from_folder(get_db):
 
 @pytest.mark.asyncio
 async def test_pin_chat_in_folder(get_db):
-    user_data = UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    )
-    user = await create_user(get_db, user_data)
+    user = await create_user1(get_db)
     folder = await create_folder_in_db(get_db, user, CreateFolderSchema(name='folder'))
 
     chat_info = CreateChatSchema(

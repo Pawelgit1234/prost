@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 
+from tests.utils import create_user1, create_user2
 from src.utils import get_object_or_404
 from src.auth.models import UserModel
 from src.auth.schemas import UserRegisterSchema
@@ -20,22 +21,8 @@ from src.join_requests.enums import JoinRequestType
 
 @pytest.mark.asyncio
 async def test_create_join_request_in_db_with_user(get_db):
-    sender_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    ))
-    receiver_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John2',
-        last_name='Doe2',
-        username='johndoe2',
-        description='test user2',
-        email='john2@example.com',
-        password='Lobaboba%8800'
-    ))
+    sender_user = await create_user1(get_db)
+    receiver_user = await create_user2(get_db)
 
     join_request = await create_join_request_in_db(get_db, sender_user, CreateJoinRequestSchema(
         target_uuid=receiver_user.uuid, join_request_type=JoinRequestType.USER
@@ -46,22 +33,8 @@ async def test_create_join_request_in_db_with_user(get_db):
 
 @pytest.mark.asyncio
 async def test_create_join_request_in_db_with_group(get_db):
-    sender_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    ))
-    group_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John2',
-        last_name='Doe2',
-        username='johndoe2',
-        description='test user2',
-        email='john2@example.com',
-        password='Lobaboba%8800'
-    ))
+    sender_user = await create_user1(get_db)
+    group_user = await create_user2(get_db)
 
     mock_redis = AsyncMock()
     group = await create_chat_in_db(get_db, mock_redis, group_user, CreateChatSchema(
@@ -77,22 +50,8 @@ async def test_create_join_request_in_db_with_group(get_db):
 
 @pytest.mark.asyncio
 async def test_approve_join_request_in_db_with_user(get_db):
-    sender_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    ))
-    receiver_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John2',
-        last_name='Doe2',
-        username='johndoe2',
-        description='test user2',
-        email='john2@example.com',
-        password='Lobaboba%8800'
-    ))
+    sender_user = await create_user1(get_db)
+    receiver_user = await create_user2(get_db)
 
     join_request = await create_join_request_in_db(get_db, sender_user, CreateJoinRequestSchema(
         target_uuid=receiver_user.uuid, join_request_type=JoinRequestType.USER
@@ -113,22 +72,9 @@ async def test_approve_join_request_in_db_with_user(get_db):
 
 @pytest.mark.asyncio
 async def test_approve_join_request_in_db_with_group(get_db):
-    sender_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    ))
-    group_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John2',
-        last_name='Doe2',
-        username='johndoe2',
-        description='test user2',
-        email='john2@example.com',
-        password='Lobaboba%8800'
-    ))
+    sender_user = await create_user1(get_db)
+    group_user = await create_user2(get_db)
+
     # workaround
     sender_user = await get_object_or_404(
         get_db, UserModel, UserModel.id == sender_user.id, options=[selectinload(UserModel.chat_associations)]
@@ -161,22 +107,8 @@ async def test_approve_join_request_in_db_with_group(get_db):
    
 @pytest.mark.asyncio
 async def test_reject_join_request_in_db(get_db):
-    sender_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John',
-        last_name='Doe',
-        username='johndoe',
-        description='test user',
-        email='john@example.com',
-        password='Secret12%8800'
-    ))
-    receiver_user = await create_user(get_db, UserRegisterSchema(
-        first_name='John2',
-        last_name='Doe2',
-        username='johndoe2',
-        description='test user2',
-        email='john2@example.com',
-        password='Lobaboba%8800'
-    ))
+    sender_user = await create_user1(get_db)
+    receiver_user = await create_user2(get_db)
 
     join_request = await create_join_request_in_db(get_db, sender_user, CreateJoinRequestSchema(
         target_uuid=receiver_user.uuid, join_request_type=JoinRequestType.USER
