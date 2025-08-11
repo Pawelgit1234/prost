@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from elasticsearch import AsyncElasticsearch
 
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
-    quit_group_in_db, add_user_to_group_in_db, get_chat_or_404
+    quit_group_in_db, user_add_user_to_group_in_db, get_chat_or_404
 from src.chats.utils import get_group_users_uuids
 from src.chats.schemas import CreateChatSchema, ChatSchema
 from src.dependencies import get_active_current_user
@@ -43,6 +43,7 @@ async def create_chat(
             "is_visible": chat.is_visible,
         }
     )
+    logger.info(f"Chat '{chat.name}' created by '{current_user.username}'")
     return ChatSchema.model_validate(chat)
 
 @router.delete('/{chat_uuid}')
@@ -56,6 +57,7 @@ async def delete_chat(
     chat = await get_chat_or_404(db, chat_uuid)
     await delete_chat_in_db(db, r, current_user, chat)
     await es.delete(index=ELASTIC_CHATS_INDEX_NAME, id=str(chat_uuid))
+    logger.info(f"Chat '{chat.name}' deleted by '{current_user.username}'")
     return {'success': True}
 
 # you can quit a group without deleting it
@@ -69,6 +71,7 @@ async def quit_group(
 ):
     group = await get_chat_or_404(db, group_uuid)
     await quit_group_in_db(db, r, es, current_user, group)
+    logger.info(f"'{current_user.username}' quit group '{group.name}'")
     return {'success': True}
 
 @router.post('{group_uuid}/add_user')
@@ -89,5 +92,5 @@ async def add_user_to_group(
         )
     )
 
-    group = await add_user_to_group_in_db(db, r, es, group, other_user, current_user)
+    group = await user_add_user_to_group_in_db(db, r, es, group, other_user, current_user)
     return {'success': True}

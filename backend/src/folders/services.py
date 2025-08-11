@@ -135,7 +135,7 @@ async def delete_folder_in_db(
     await db.delete(folder)
     await db.commit()
     await reorder_folders_after_deletion(db, user)
-    logger.info(f'Folder {folder.name} deleted')
+    logger.info(f'Folder {folder.name} deleted by {user.username}')
 
 async def add_chat_to_folder(
     db: AsyncSession,

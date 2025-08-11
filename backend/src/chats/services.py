@@ -15,7 +15,7 @@ from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.enums import ChatType
 from src.chats.utils import group_folders_by_type, invalidate_chat_cache, get_group_users_uuids,\
-    is_user_in_chat, update_group_members_in_elastic, ensure_no_normal_chat_or_403
+    ensure_user_in_chat_or_403, update_group_members_in_elastic, ensure_no_normal_chat_or_403
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 
@@ -56,7 +56,7 @@ async def create_chat_in_db(
     db.add(all_folder_assoc)
 
     await invalidate_cache(r, REDIS_CHATS_KEY, folders[FolderType.ALL].uuid, current_user.uuid)
-
+    
     if chat_info.chat_type == ChatType.NORMAL:
         chats_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.CHATS], chat=chat)
         other_user = await get_object_or_404(
@@ -90,7 +90,6 @@ async def create_chat_in_db(
     # loads user and folder associations
     chat = await get_chat_or_404(db, chat.uuid)
 
-    logger.info(f"Chat '{chat.name}' created by '{current_user.username}'")
     return chat
 
 async def delete_chat_in_db(
@@ -99,18 +98,13 @@ async def delete_chat_in_db(
     user: UserModel,
     chat: ChatModel
 ) -> None: 
-    if not is_user_in_chat(user, chat):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Only group members can delete this chat'
-        )
+    ensure_user_in_chat_or_403(user, chat, 'Only group members can delete this chat')
 
     folders = [assoc.folder for assoc in chat.folder_associations]
     await invalidate_chat_cache(r, *folders, user=user)
 
     await db.delete(chat)
     await db.commit()
-    logger.info(f"Chat '{chat.name}' deleted'")
 
 async def quit_group_in_db(
     db: AsyncSession,
@@ -143,28 +137,20 @@ async def quit_group_in_db(
 
     await update_group_members_in_elastic(es, group)
 
-    logger.info(f"'{current_user.username}' quit group '{group.name}'")
-
 async def add_user_to_group_in_db(
     db: AsyncSession,
     r: Redis,
     es: AsyncElasticsearch,
     group: ChatModel,
-    other_user: UserModel,
-    user: UserModel
+    user: UserModel,
 ) -> ChatModel:
+    """ Adds user to group """
     from src.folders.services import get_folders_list
-    
-    if not is_user_in_chat(user, group):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Only group members can add new users'
-        )
-    
+
     # checks if user already is member of the group
     existing = await db.execute(
         select(UserChatAssociationModel)
-        .where(UserChatAssociationModel.user_id == other_user.id,
+        .where(UserChatAssociationModel.user_id == user.id,
             UserChatAssociationModel.chat_id == group.id)
     )
     if existing.scalar_one_or_none() is not None:
@@ -173,16 +159,31 @@ async def add_user_to_group_in_db(
             detail="User is already a member of the group"
         )
 
-    folders = group_folders_by_type(await get_folders_list(db, other_user))
-    await invalidate_chat_cache(r, folders[FolderType.ALL], folders[FolderType.GROUPS], user=other_user)
+    folders = group_folders_by_type(await get_folders_list(db, user))
+    await invalidate_chat_cache(r, folders[FolderType.ALL], folders[FolderType.GROUPS], user=user)
 
-    chat_association = UserChatAssociationModel(user=other_user, chat=group)
+    chat_association = UserChatAssociationModel(user=user, chat=group)
     all_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.ALL], chat=group)
     group_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.GROUPS], chat=group)
     db.add_all([chat_association, all_folder_assoc, group_folder_assoc])
     await db.commit()
 
     await update_group_members_in_elastic(es, group)
+    return group
 
-    logger.info(f"'{other_user.username}' join group '{group.name}'")
+async def user_add_user_to_group_in_db(
+    db: AsyncSession,
+    r: Redis,
+    es: AsyncElasticsearch,
+    group: ChatModel,
+    other_user: UserModel,
+    user: UserModel
+) -> ChatModel:
+    """ User add other user into group """
+    from src.folders.services import get_folders_list
+
+    ensure_user_in_chat_or_403(user, group, 'Only group members can add new users')
+    group = await add_user_to_group_in_db(db, r, es, group, other_user)
+    logger.info(f"'{other_user.username}' added to group '{group.name}' by {user.username}")
+
     return group

@@ -42,14 +42,26 @@ async def get_common_chats(
 async def ensure_no_normal_chat_or_403(
     db: AsyncSession,
     user: UserModel,
-    other_user: UserModel
+    other_user: UserModel,
+    detail: str = 'You already have a normal chat with user'
 ) -> None:
     common_chats = await get_common_chats(db, user, other_user)
     chat_types = [chat.chat_type for chat in common_chats]
     if ChatType.NORMAL in chat_types:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='You already have a normal chat with user'
+            detail=detail
+        )
+    
+def ensure_user_in_chat_or_403(
+    user: UserModel,
+    chat: ChatModel,
+    detail: str = "You must be in the chat"
+):
+    if not is_user_in_chat(user, chat):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail
         )
 
 async def update_group_members_in_elastic(es: AsyncElasticsearch, chat: ChatModel) -> None:

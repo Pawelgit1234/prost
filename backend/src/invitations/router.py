@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from elasticsearch import AsyncElasticsearch
 
 from src.settings import HOST, REDIS_CACHE_EXPIRE_SECONDS, REDIS_USER_INVITATION_KEY,\
-    REDIS_GROUP_INVITATION_KEY#
+    REDIS_GROUP_INVITATION_KEY
 from src.database import get_db, get_redis, get_es
 from src.dependencies import get_active_current_user
 from src.utils import get_all_objects, get_object_or_404, wrap_list_response, \
@@ -19,6 +19,7 @@ from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.invitations.models import InvitationModel
 from src.invitations.enums import InvitationType
+from src.invitations.utils import get_invitation_or_404
 from src.invitations.services import create_invitation_in_db, get_all_group_invitations_list, \
     delete_invitation_in_db, use_invitation
 from src.invitations.schemas import InvitationSchema, CreateInvitationSchema
@@ -87,9 +88,10 @@ async def create_invitation(
 
     if invitation.invitation_type == InvitationType.USER:
         await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)
+        logger.info(f'Invitation created by {current_user.username}')
     elif invitation.invitation_type == InvitationType.GROUP:
-        await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation.group.uuid)
-
+        await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation_info.group_uuid)
+    
     return InvitationSchema.model_validate(invitation)
 
 @router.delete('/')
@@ -99,21 +101,15 @@ async def delete_invitation(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     invitation_uuid: UUID
 ):
-    invitation = await get_object_or_404(
-        db, InvitationModel, InvitationModel.uuid == invitation_uuid,
-        detail='Invitation not found',
-        options=[
-            selectinload(InvitationModel.user),
-            selectinload(InvitationModel.group).selectinload(ChatModel.user_associations)
-        ]
-    )
-
+    invitation = await get_invitation_or_404(db, invitation_uuid)
     await delete_invitation_in_db(db, current_user, invitation)
 
     if invitation.invitation_type == InvitationType.USER:
         await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)
+        logger.info(f'Invitation deleted by {current_user.username}')
     elif invitation.invitation_type == InvitationType.GROUP:
         await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation.group.uuid)
+        logger.info(f'Invitation deleted from group {invitation.group.name} by {current_user.username}')
 
     return {'success': True}
 
@@ -121,23 +117,18 @@ async def delete_invitation(
 async def join_via_invitation(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     invitation_uuid: UUID
 ):
-    invitation = await get_object_or_404(
-        db, InvitationModel, InvitationModel.uuid == invitation_uuid,
-        detail='Invitation not found',
-        options=[
-            selectinload(InvitationModel.user),
-            selectinload(InvitationModel.group).selectinload(ChatModel.user_associations)
-        ]
-    )
-
-    await use_invitation(db, current_user, invitation)
+    invitation = await get_invitation_or_404(db, invitation_uuid)
+    await use_invitation(db, r, es, current_user, invitation)
 
     if invitation.invitation_type == InvitationType.USER:
         await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)
+        logger.info(f'{current_user.username} created a chat via invitation with {invitation.user.username}')
     elif invitation.invitation_type == InvitationType.GROUP:
         await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation.group.uuid)
+        logger.info(f"{current_user.username} joined a group '{invitation.group.name}' via invitation")
 
     return {'success': True}

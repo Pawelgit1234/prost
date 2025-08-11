@@ -9,8 +9,8 @@ from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.chats.schemas import CreateChatSchema
 from src.chats.enums import ChatType
-from src.chats.utils import is_user_in_chat, ensure_no_normal_chat_or_403
-from src.chats.services import add_user_to_group_in_db, create_chat_in_db
+from src.chats.utils import is_user_in_chat, ensure_no_normal_chat_or_403, ensure_user_in_chat_or_403
+from src.chats.services import user_add_user_to_group_in_db, create_chat_in_db
 from src.join_requests.models import JoinRequestModel
 from src.join_requests.enums import JoinRequestType
 from src.join_requests.schemas import CreateJoinRequestSchema
@@ -20,11 +20,7 @@ async def get_all_group_join_requests_list(
     user: UserModel,
     group: ChatModel
 ) -> list[JoinRequestModel]:
-    if not is_user_in_chat(user, group):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Only group members can get join requests'
-        )
+    ensure_user_in_chat_or_403(user, group, 'Only group members can get join requests')
 
     join_requests = await get_all_objects(
         db, JoinRequestModel, JoinRequestModel.group_id == group.id,
@@ -101,7 +97,7 @@ async def approve_join_request_in_db(
         ))
     elif join_request.join_request_type == JoinRequestType.GROUP:
         # already checks if receiver in the group
-        await add_user_to_group_in_db(db, r, es, join_request.group, join_request.sender_user, user)
+        await user_add_user_to_group_in_db(db, r, es, join_request.group, join_request.sender_user, user)
     
     await db.delete(join_request)
     await db.commit()
@@ -118,11 +114,8 @@ async def reject_join_request_in_db(
                 detail='You are not authorized to reject this join request'
             )
     elif join_request.join_request_type == JoinRequestType.GROUP:
-        if not is_user_in_chat(user, join_request.group):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='Only group members can reject join requests'
-            )
+        ensure_user_in_chat_or_403(user, join_request.group, 'Only group members can reject join requests')
+
 
     await db.delete(join_request)
     await db.commit()

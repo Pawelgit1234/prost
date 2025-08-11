@@ -26,7 +26,7 @@ class InvitationModel(Base, TimestampMixin):
     uuid: Mapped[uuid_type]
 
     invitation_type: Mapped[InvitationType]
-    max_uses: Mapped[int] = mapped_column(default=1, nullable=True) # null = unlimited
+    max_uses: Mapped[int] = mapped_column(nullable=True) # null = unlimited
     lifetime: Mapped[InvitationLifetime]
 
     # Group or User who creates an invitation

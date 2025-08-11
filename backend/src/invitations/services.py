@@ -1,34 +1,33 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
+import logging
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from sqlalchemy import delete
+from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy import select
 from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
 
 from src.utils import save_to_db, get_object_or_404, get_all_objects
 from src.auth.models import UserModel
-from src.chats.models import ChatModel
+from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.schemas import CreateChatSchema
 from src.chats.enums import ChatType
-from src.chats.utils import is_user_in_chat
+from src.chats.utils import ensure_user_in_chat_or_403
 from src.chats.services import create_chat_in_db, add_user_to_group_in_db
 from src.invitations.models import InvitationModel
 from src.invitations.enums import InvitationType
 from src.invitations.schemas import InvitationSchema
 from src.invitations.utils import convert_invitation_type_to_datetime
 
+logger = logging.getLogger(__name__)
+
 async def get_all_group_invitations_list(
     db: AsyncSession,
     user: UserModel,
     group: ChatModel
 ) -> list[InvitationModel]:
-    if not is_user_in_chat(user, group):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Only group members can get invitations'
-        )
+    ensure_user_in_chat_or_403(user, group, 'Only group members can see invitations')
 
     invitations = await get_all_objects(
         db, InvitationModel, InvitationModel.group_id == group.id,
@@ -54,19 +53,17 @@ async def create_invitation_in_db(
             detail='Group not found',
             options=[selectinload(ChatModel.user_associations)]
         )
-        
-        if not is_user_in_chat(user, group):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='You need to be in the Group to create an invitation'
-            )
 
+        ensure_user_in_chat_or_403(user, group, 'Only group members can create an invitation')
+        
         invitation = InvitationModel(
             invitation_type=invitation_info.invitation_type,
             max_uses=invitation_info.max_uses,
             lifetime=invitation_info.lifetime,
             group=group
         )
+
+        logger.info(f'Invitation created in group {group.name} by {user.username}')
     
     return (await save_to_db(db, [invitation]))[0]
 
@@ -82,11 +79,7 @@ async def delete_invitation_in_db(
                 detail='You are not authorized to delete this invitation'
             )
     elif invitation.invitation_type == InvitationType.GROUP:
-        if not is_user_in_chat(user, invitation.group):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='Only group members can delete invitations'
-            )
+        ensure_user_in_chat_or_403(user, invitation.group, 'Only group members can delete invitations')
 
     await db.delete(invitation)
     await db.commit()
@@ -99,25 +92,35 @@ async def use_invitation(
     invitation: InvitationModel
 ) -> None:
     lifetime = convert_invitation_type_to_datetime(invitation.lifetime)
-    if invitation.created_at + lifetime > datetime.now():
-        await db.delete(invitation)
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Invitation not found'
-        )
+    if lifetime is not None:
+        if invitation.created_at + lifetime < datetime.now(timezone.utc):
+            await db.delete(invitation)
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Invitation to old'
+            )
     
-    if invitation.max_uses == 1:
-        await db.delete(invitation)
-    else:
-        invitation.max_uses -= 1
+    if invitation.max_uses is not None:
+        if invitation.max_uses == 1:
+            await db.delete(invitation)
+            logger.info("Invitation deleted after using it last time")
+        else:
+            invitation.max_uses -= 1
 
     # build in commit
     if invitation.invitation_type == InvitationType.USER:
+        await db.refresh(user, ['chat_associations']) # loads chat_assoc
         await create_chat_in_db(db, r, user, CreateChatSchema(
             chat_type=ChatType.NORMAL,
             name=invitation.user.username
         ))
     elif invitation.invitation_type == InvitationType.GROUP:
-        await add_user_to_group_in_db(db, r, es, invitation.group, user, invitation.user)
-    
+        result = await db.execute(
+            select(ChatModel)
+            .options(selectinload(ChatModel.user_associations)
+                    .selectinload(UserChatAssociationModel.user))
+            .where(ChatModel.uuid == invitation.group.uuid)
+        )
+        group = result.scalar_one_or_none()
+        await add_user_to_group_in_db(db, r, es, group, user)

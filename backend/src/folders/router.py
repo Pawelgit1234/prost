@@ -81,7 +81,7 @@ async def create_folder(
 ):
     folder = await create_folder_in_db(db, current_user, folder_info)
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
-    logger.info(f'Folder {folder.name} created')
+    logger.info(f'Folder {folder.name} created by {current_user.username}')
     return FolderSchema.model_validate(folder)
 
 # only for custom
@@ -119,6 +119,7 @@ async def add_chat(
     )
     await add_chat_to_folder(db, current_user, folder, chat)
     await invalidate_cache(r, REDIS_CHATS_KEY, folder_uuid, current_user.uuid)
+    logger.info(f'Chat added to folder {folder.name} by {current_user.username}')
     return {'success': True}
 
 # only for custom
@@ -133,6 +134,7 @@ async def delete_chat(
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
     await delete_chat_from_folder(db, current_user, assoc)
     await invalidate_cache(r, REDIS_CHATS_KEY, folder_uuid, current_user.uuid)
+    logger.info(f'Chat deleted from folder {assoc.folder.name} by {current_user.username}')
     return {'success': True}
 
 # toggles the 'is_pinned' field
@@ -147,4 +149,5 @@ async def pin_chat(
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
     is_pinned = await pin_chat_in_folder(db, current_user, assoc)
     await invalidate_cache(r, REDIS_CHATS_KEY, folder_uuid, current_user.uuid)
+    logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
     return {'is_pinned': is_pinned}
