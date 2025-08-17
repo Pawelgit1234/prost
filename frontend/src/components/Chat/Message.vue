@@ -1,13 +1,7 @@
 <script setup lang="ts">
-interface Props {
-    text: string
-    author: string
-    datetime: string
-    isMine: boolean
-    wasUpdated: boolean
-}
+import type { Message } from '../types';
 
-const props = defineProps<Props>();
+const props = defineProps<Message>();
 </script>
 
 <template>
