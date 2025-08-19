@@ -1,10 +1,10 @@
-export interface Folder {
+export interface FolderType {
   uuid: string
   name: string
   pos: number
 }
 
-export interface Chat {
+export interface ChatType {
   uuid: string
   name: string
   folderUuid: string
@@ -12,7 +12,7 @@ export interface Chat {
   is_pinned: boolean
 }
 
-export interface Message {
+export interface MessageType {
   uuid: string
   text: string
   author: string

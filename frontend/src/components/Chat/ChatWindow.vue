@@ -1,34 +1,26 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { Message } from '../types';
+import type { MessageType } from '../types';
 import MessageList from './MessageList.vue'
 
-const messages = ref<Message[]>([
-  {
-    uuid: crypto.randomUUID(),
-    text: "Hello",
-    author: "Andry",
-    datetime: "12:34",
-    isMine: false,
-    wasUpdated: false
-  }
-])
+const messages = ref<MessageType[]>([])
 
 const newMessage = ref(""); // input
 
 function sendMessage() {
-  if (!newMessage.value.trim()) return
+  if (!newMessage.value.trim()) return;
 
   messages.value.push({
     uuid: crypto.randomUUID(),
+    chatUuid: crypto.randomUUID(),
     text: newMessage.value,
     author: "Me",
     datetime: new Date().toLocaleTimeString().slice(0, 5),
     isMine: true,
     wasUpdated: false
-  })
+  });
 
-  newMessage.value = ""
+  newMessage.value = "";
 }
 
 </script>
