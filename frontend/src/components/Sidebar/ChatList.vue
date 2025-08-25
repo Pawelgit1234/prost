@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue';
-import type { ChatType } from '../types';
+import type { ChatType } from '../../stores/chats';
 
 const props = defineProps<{
   chats: ChatType[];

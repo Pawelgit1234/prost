@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import Messenger from './components/Messenger.vue';
 </script>
 
 <template>
-    <Messenger/>
+    <router-view/>
 </template>
 
 

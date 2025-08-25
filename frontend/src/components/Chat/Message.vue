@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MessageType } from '../types';
+import type { MessageType } from '../../stores/messages';
 
 const props = defineProps<MessageType>();
 </script>

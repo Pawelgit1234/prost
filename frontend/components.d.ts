@@ -17,5 +17,7 @@ declare module 'vue' {
     Message: typeof import('./src/components/Chat/Message.vue')['default']
     MessageList: typeof import('./src/components/Chat/MessageList.vue')['default']
     Messenger: typeof import('./src/components/Messenger.vue')['default']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
   }
 }

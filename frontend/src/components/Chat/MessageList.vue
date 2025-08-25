@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Message from './Message.vue'
-import type { MessageType } from '../types';
+import type { MessageType } from '../../stores/messages';
 
 const props = defineProps<{
   messages: MessageType[]

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue';
-import type { FolderType } from '../types';
+import type { FolderType } from '../../stores/folders';
 
 const props = defineProps<{
     folders: FolderType[];

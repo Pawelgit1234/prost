@@ -1,52 +1,66 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import type { MessageType } from '../types';
-import MessageList from './MessageList.vue'
+import { ref, watch, nextTick } from 'vue';
+import type { MessageType } from '../../stores/messages';
+import MessageList from './MessageList.vue';
 
-const messages = ref<MessageType[]>([])
+const props = defineProps<{
+  chatUuid: string;
+  messages: MessageType[];
+}>();
 
-const newMessage = ref(""); // input
+const emit = defineEmits<{
+  (e: 'sendMessage', msg: MessageType): void;
+}>();
+
+const newMessage = ref('');
+const messagesRef = ref<HTMLElement | null>(null);
+
+// Autoscroll down
+watch(() => props.messages.length, async () => {
+  await nextTick();
+  messagesRef.value?.scrollTo({ top: messagesRef.value.scrollHeight });
+});
 
 function sendMessage() {
   if (!newMessage.value.trim()) return;
 
-  messages.value.push({
-    uuid: crypto.randomUUID(),
-    chatUuid: crypto.randomUUID(),
+  const msg: MessageType = {
+    chatUuid: props.chatUuid,
+    author: 'Me',
     text: newMessage.value,
-    author: "Me",
     datetime: new Date().toLocaleTimeString().slice(0, 5),
     isMine: true,
-    wasUpdated: false
-  });
+    wasUpdated: false,
+    uuid: crypto.randomUUID(),
+  };
 
-  newMessage.value = "";
+  emit('sendMessage', msg);
+  newMessage.value = '';
 }
-
 </script>
 
 <template>
-    <div class="chat-window">
-        <MessageList :messages="messages"/>
-
-        <div class="input">
-            <input
-                v-model="newMessage"
-                type="text"
-                placeholder="Write a message..."
-                @keyup.enter="sendMessage"
-            />
-            <button @click="sendMessage">Send</button>
-        </div>
+  <div class="chat-window-inner" ref="messagesRef">
+    <MessageList :messages="messages"/>
+    <div class="input">
+      <input
+        v-model="newMessage"
+        type="text"
+        placeholder="Write a message..."
+        @keyup.enter="sendMessage"
+      />
+      <button @click="sendMessage">Send</button>
     </div>
+  </div>
 </template>
 
 <style>
-.chat-window {
+.chat-window-inner {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* во всю высоту экрана */
-  border: 1px solid #ccc;
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
 }
 
 .input {
