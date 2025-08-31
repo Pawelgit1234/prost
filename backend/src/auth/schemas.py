@@ -22,14 +22,6 @@ class UserRegisterSchema(BaseModel):
         if not re.search(r'[^A-Za-z0-9]', value):
             raise ValueError('Password must contain at least one special character.')
         return value
-    
-class TokenSchema(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
 
 class TokenDataSchema(BaseModel):
     username: str
-
-class RefreshTokenSchema(BaseModel):
-    refresh_token: str

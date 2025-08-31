@@ -7,10 +7,11 @@ from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 import aiosmtplib
 from fastapi import HTTPException, status
+from fastapi.responses import JSONResponse
 
-from src.settings import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, \
+from src.settings import SECRET_KEY, ALGORITHM, \
     SMTP_SERVER, SMTP_PORT, SENDER_EMAIL, SENDER_EMAIL_PASSWORD, \
-    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, HTTPS
 from src.auth.schemas import TokenDataSchema
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -37,6 +38,26 @@ def create_access_token(data: dict) -> str:
 
 def create_refresh_token(data: dict) -> str:
     return create_jwt_token(data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+
+def create_token_response(access_token: str, refresh_token: str) -> JSONResponse:
+    """ access token -> json, refresh token -> cookie & httponly """
+    response = JSONResponse(
+        content={
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=HTTPS,
+        samesite="lax",
+        max_age=60*60*24*REFRESH_TOKEN_EXPIRE_DAYS
+    )
+
+    return response
 
 def decode_jwt_token(token: str) -> TokenDataSchema:
     credentials_exception = HTTPException(

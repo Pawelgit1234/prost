@@ -1,6 +1,7 @@
 import os
 
 HOST = 'http://127.0.0.1:8000'
+HTTPS = False
 
 DATABASE_URL = (
     f"postgresql+asyncpg://{os.environ['DB_USERNAME']}:"

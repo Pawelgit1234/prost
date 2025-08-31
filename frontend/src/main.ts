@@ -8,11 +8,7 @@ import { createBootstrap } from 'bootstrap-vue-next/plugins/createBootstrap'
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
 
-import { createPinia } from 'pinia'
-import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
-
-const pinia = createPinia()
-pinia.use(piniaPluginPersistedstate)
+import pinia from './store/index'
 
 const app = createApp(App)
 app.use(createBootstrap())

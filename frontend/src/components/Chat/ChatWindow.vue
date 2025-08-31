@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
-import type { MessageType } from '../../stores/messages';
+import type { MessageType } from '../../store/messages';
 import MessageList from './MessageList.vue';
 
 const props = defineProps<{

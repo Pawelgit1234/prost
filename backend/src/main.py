@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 import asyncio
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -21,6 +22,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(main_router)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY) # for google-auth
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173/"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 if __name__ == '__main__':
     uvicorn.run('src.main:app', host="0.0.0.0", port=8000, reload=True)

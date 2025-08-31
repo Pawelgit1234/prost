@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import Message from './Message.vue'
-import type { MessageType } from '../../stores/messages';
+import type { MessageType } from '../../store/messages';
 
-const props = defineProps<{
+const props = defineProps<{ // ToDo: Props на pinia
   messages: MessageType[]
 }>()
 </script>

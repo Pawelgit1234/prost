@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useFolderStore } from '../stores/folders';
-import { useChatStore } from '../stores/chats';
-import { useMessageStore, type MessageType } from '../stores/messages';
+import { useFolderStore } from '../store/folders';
+import { useChatStore } from '../store/chats';
+import { useMessageStore, type MessageType } from '../store/messages';
 
 import FolderList from '../components/Sidebar/FolderList.vue';
 import ChatList from '../components/Sidebar/ChatList.vue';
