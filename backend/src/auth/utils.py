@@ -39,14 +39,21 @@ def create_access_token(data: dict) -> str:
 def create_refresh_token(data: dict) -> str:
     return create_jwt_token(data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
 
-def create_token_response(access_token: str, refresh_token: str) -> JSONResponse:
+def create_token_response(
+    access_token: str,
+    refresh_token: str,
+    user: dict | None = None
+) -> JSONResponse:
     """ access token -> json, refresh token -> cookie & httponly """
-    response = JSONResponse(
-        content={
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
-    )
+    content = {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+    if user is not None:
+        content['user'] = user
+    
+    response = JSONResponse(content=content)
 
     response.set_cookie(
         key="refresh_token",

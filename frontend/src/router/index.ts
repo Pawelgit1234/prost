@@ -1,18 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import SignIn from '../views/SignIn.vue'
-import SignUp from '../views/SignUp.vue'
+import Login from '../views/Login.vue'
+import Register from '../views/Register.vue'
 import Messenger from '../views/Messenger.vue'
 
 const routes = [
   {
-    path: "/signin",
-    name: "SignIn",
-    component: SignIn,
+    path: "/login",
+    name: "Login",
+    component: Login,
   },
   {
-    path: "/signup",
-    name: "SignUp",
-    component: SignUp,
+    path: "/register",
+    name: "Register",
+    component: Register,
   },
   {
     path: "/messenger",
@@ -22,7 +22,7 @@ const routes = [
   // redirect
   {
     path: "/",
-    redirect: "/signin",
+    redirect: "/login",
   },
 ];
 

@@ -22,7 +22,8 @@ export interface UserType {
 export const useUserStore = defineStore('user', {
   state: () => ({
     accessToken: null as string | null, // refreshToken in httponly
-    user: null as UserType | null,
+    currentUser: null as UserType | null,
+    otherUsers: [] as UserType[] | null,
   }),
   actions: {
     async logout() {
@@ -30,7 +31,8 @@ export const useUserStore = defineStore('user', {
 
       // cleans other data
       this.accessToken = null;
-      this.user = null;
+      this.currentUser = null;
+      this.otherUsers = [];
 
       const folderStore = useFolderStore();
       folderStore.$reset();
@@ -40,6 +42,28 @@ export const useUserStore = defineStore('user', {
 
       const messageStore = useMessageStore();
       messageStore.$reset();
+    },
+
+    async login(emailOrUsername: string, password: string) {
+      try {
+        const formData = new FormData();
+        formData.append("username", emailOrUsername);
+        formData.append("password", password);
+        
+        const headers = {
+          Accept: "application/json",
+          "Conetent-Type": "application/x-www-form-urlencoded",
+        }
+
+        const response = await axiosInstance.post("auth/token", formData, { headers: headers });
+        let data = response.data; // { user, access_token, token_type } 
+
+        this.accessToken = data.access_token;
+        this.currentUser = data.user as UserType;
+      } catch (error) {
+        console.log("Error during Login: ", error);
+        throw error;
+      }
     }
   },
   persist: true

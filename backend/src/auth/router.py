@@ -14,7 +14,7 @@ from src.dependencies import get_current_user
 from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
     decode_jwt_token, create_token_response
-from src.auth.schemas import UserRegisterSchema
+from src.auth.schemas import UserRegisterSchema, UserSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
     activate_user 
 from src.auth.models import UserModel
@@ -94,8 +94,9 @@ async def login(
     logging.info(f'{user.username} logged in')
     access_token = create_access_token({'sub': user.username})
     refresh_token = create_refresh_token({'sub': user.username})
-    return create_token_response(access_token, refresh_token)
+    user_dict = UserSchema.model_validate(user).model_dump(mode='json')
 
+    return create_token_response(access_token, refresh_token, user_dict)
 
 @router.post('/register')
 async def register(

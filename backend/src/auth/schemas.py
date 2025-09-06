@@ -1,6 +1,8 @@
 import re
+from datetime import datetime
+from uuid import UUID
 
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 
 class UserRegisterSchema(BaseModel):
     first_name: str = Field(max_length=32)
@@ -22,6 +24,22 @@ class UserRegisterSchema(BaseModel):
         if not re.search(r'[^A-Za-z0-9]', value):
             raise ValueError('Password must contain at least one special character.')
         return value
+
+class UserSchema(BaseModel):
+    uuid: UUID
+    created_at: datetime
+    updated_at: datetime
+    first_name: str
+    last_name: str
+    description: str
+    username: str
+    email: EmailStr
+    avatar: str | None = Field(default=None)
+    is_active: bool
+    is_visible: bool
+    is_open_for_messages: bool
+
+    model_config = ConfigDict(from_attributes=True)
 
 class TokenDataSchema(BaseModel):
     username: str

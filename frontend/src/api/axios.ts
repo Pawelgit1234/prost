@@ -18,7 +18,7 @@ axiosInstance.interceptors.response.use(
 
         // invalid refresh token
         if (error.response?.status === 401 && originalRequest.url === "/auth/refresh/") {
-            userStore.logout();
+            await userStore.logout();
             router.push("/signin");
         }
     
@@ -29,7 +29,7 @@ axiosInstance.interceptors.response.use(
                 userStore.accessToken = data.access_token;
                 return axiosInstance(originalRequest);
             } catch (err) {
-                userStore.logout();
+                await userStore.logout();
                 router.push("/signin");
             }
         }
@@ -52,4 +52,4 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-export default axios;
+export default axiosInstance;

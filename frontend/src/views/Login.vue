@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useUserStore } from '../store/user';
+import pinia from '../store';
 
 const emailOrUsername = ref("");
 const password = ref("");
 const error = ref("");
 
-function submit() {
+async function submit() {
   error.value = ""; 
 
   if (!emailOrUsername.value.trim() || !password.value.trim()) {
@@ -13,11 +15,14 @@ function submit() {
     return;
   }
 
-  console.log("Sign In:", emailOrUsername.value, password.value);
+  console.log("Login: ", emailOrUsername.value, password.value);
+
+  const userStore = useUserStore(pinia);
+  await userStore.login(emailOrUsername.value, password.value);
 }
 
-function signInWithGoogle() {
-  console.log("Sign in with Google clicked");
+async function loginWithGoogle() {
+  console.log("Login with Google clicked");
 }
 
 </script>
@@ -25,21 +30,21 @@ function signInWithGoogle() {
 <template>
   <div class="container d-flex justify-content-center align-items-center vh-100">
     <div class="card p-4 shadow-sm" style="width: 100%; max-width: 400px;">
-      <h3 class="card-title text-center mb-3">Sign In</h3>
+      <h3 class="card-title text-center mb-3">Login</h3>
 
-      <!-- Google Sign In -->
+      <!-- Google Login -->
       <button
         type="button"
         class="btn google-btn w-100 mb-3 d-flex align-items-center justify-content-center"
-        @click="signInWithGoogle"
+        @click="loginWithGoogle"
       >
         <img src="https://www.svgrepo.com/show/380993/google-logo-search-new.svg" alt="G" />
-        <span>Sign in with Google</span>
+        <span>Login with Google</span>
       </button>
 
       <div class="text-center mb-3">or</div>
 
-      <!-- Regular Sign In -->
+      <!-- Regular Login -->
       <form @submit.prevent="submit">
         <div class="mb-3">
           <label for="emailOrUsername" class="form-label">Email or Username</label>
@@ -68,11 +73,11 @@ function signInWithGoogle() {
           {{ error }}
         </div>
 
-        <button type="submit" class="btn btn-primary w-100">Sign In</button>
+        <button type="submit" class="btn btn-primary w-100">Login</button>
       </form>
 
       <p class="text-center mt-3">
-        Don't have an account? <a href="/signup">Sign Up</a>
+        Don't have an account? <a href="/register">Register</a>
       </p>
     </div>
   </div>

@@ -10,7 +10,7 @@ const password = ref("");
 const confirmPassword = ref("");
 const error = ref("");
 
-function submit() {
+async function submit() {
   error.value = "";
 
   if (
@@ -30,7 +30,7 @@ function submit() {
     return;
   }
 
-  console.log("Sign Up:", {
+  console.log("Register: ", {
     first_name: firstName.value,
     last_name: lastName.value,
     description: description.value || null,
@@ -40,29 +40,29 @@ function submit() {
   });
 }
 
-function signUpWithGoogle() {
-  console.log("Sign up with Google clicked");
+async function registerWithGoogle() {
+  console.log("Register with Google clicked");
 }
 </script>
 
 <template>
   <div class="container d-flex justify-content-center align-items-center vh-100">
     <div class="card p-4 shadow-sm" style="width: 100%; max-width: 450px;">
-      <h3 class="card-title text-center mb-3">Sign Up</h3>
+      <h3 class="card-title text-center mb-3">Register</h3>
 
-      <!-- Google Sign Up -->
+      <!-- Google Register -->
       <button
         type="button"
         class="btn google-btn w-100 mb-3 d-flex align-items-center justify-content-center"
-        @click="signUpWithGoogle"
+        @click="registerWithGoogle"
       >
         <img src="https://www.svgrepo.com/show/380993/google-logo-search-new.svg" alt="G" />
-        <span>Sign up with Google</span>
+        <span>Register with Google</span>
       </button>
 
       <div class="text-center mb-3">or</div>
 
-      <!-- Regular Sign Up -->
+      <!-- Regular Register -->
       <form @submit.prevent="submit">
         <div class="mb-3">
           <label for="firstName" class="form-label">First Name</label>
@@ -97,11 +97,11 @@ function signUpWithGoogle() {
           {{ error }}
         </div>
 
-        <button type="submit" class="btn btn-primary w-100">Sign Up</button>
+        <button type="submit" class="btn btn-primary w-100">Register</button>
       </form>
 
       <p class="text-center mt-3">
-        Already have an account? <a href="/signin">Sign In</a>
+        Already have an account? <a href="/login">Login</a>
       </p>
     </div>
   </div>
