@@ -31,7 +31,7 @@ class UserSchema(BaseModel):
     updated_at: datetime
     first_name: str
     last_name: str
-    description: str
+    description: str | None = Field(default=None)
     username: str
     email: EmailStr
     avatar: str | None = Field(default=None)

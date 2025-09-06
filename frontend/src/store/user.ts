@@ -52,7 +52,7 @@ export const useUserStore = defineStore('user', {
         
         const headers = {
           Accept: "application/json",
-          "Conetent-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/x-www-form-urlencoded",
         }
 
         const response = await axiosInstance.post("auth/token", formData, { headers: headers });
@@ -64,7 +64,39 @@ export const useUserStore = defineStore('user', {
         console.log("Error during Login: ", error);
         throw error;
       }
-    }
-  },
-  persist: true
+    },
+
+    async register(
+      firstName: string,
+      lastName: string,
+      description: string | null,
+      username: string,
+      email: string,
+      password: string,
+    ) {
+      try {
+        const payload = {
+          first_name: firstName,
+          last_name: lastName,
+          description: description,
+          username: username,
+          email: email,
+          password: password,
+        };
+
+        const response = await axiosInstance.post("/auth/register", payload, {
+          headers: { "Accept": "application/json" }
+        });
+        let data = response.data; // { user, access_token, token_type } 
+
+        this.accessToken = data.access_token;
+        this.currentUser = data.user as UserType;
+      } catch (error) {
+        console.log("Error during Register: ", error);
+        throw error;
+      }
+    },
+
+    persist: true
+  }
 })

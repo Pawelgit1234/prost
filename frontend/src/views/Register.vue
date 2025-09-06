@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import pinia from '../store';
+import { useUserStore } from '../store/user';
 
 const firstName = ref("");
 const lastName = ref("");
@@ -38,6 +40,12 @@ async function submit() {
     email: email.value,
     password: password.value,
   });
+
+  const userStore = useUserStore(pinia);
+  await userStore.register(
+    firstName.value, lastName.value, description.value || null,
+    username.value, email.value, password.value
+  );
 }
 
 async function registerWithGoogle() {

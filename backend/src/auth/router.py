@@ -123,7 +123,9 @@ async def register(
     logging.info(f'{user.username} registration completed')
     access_token = create_access_token({'sub': user.username})
     refresh_token = create_refresh_token({'sub': user.username})
-    return create_token_response(access_token, refresh_token)
+    user_dict = UserSchema.model_validate(user).model_dump(mode='json')
+
+    return create_token_response(access_token, refresh_token, user_dict)
 
 @router.get('/activation/{email_activation_token}')
 async def activate(
