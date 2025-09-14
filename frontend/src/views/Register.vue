@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import pinia from '../store';
 import { useUserStore } from '../store/user';
+import { useRouter } from 'vue-router';
 
 const firstName = ref("");
 const lastName = ref("");
@@ -46,10 +47,13 @@ async function submit() {
     firstName.value, lastName.value, description.value || null,
     username.value, email.value, password.value
   );
+
+  const router = useRouter();
+  router.push("/messenger")
 }
 
 async function registerWithGoogle() {
-  console.log("Register with Google clicked");
+  window.location.href = import.meta.env.VITE_API_ENDPOINT + '/auth/google/url'
 }
 </script>
 

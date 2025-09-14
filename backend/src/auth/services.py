@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 
@@ -14,6 +14,10 @@ from src.auth.schemas import UserRegisterSchema
 from src.auth.utils import verify_password, get_password_hash
 from src.folders.services import create_folder_in_db
 from src.folders.enums import FolderType
+
+async def get_user_or_none(db: AsyncSession, email: str) -> UserModel | None:
+    result = await db.execute(select(UserModel).where(UserModel.email == email))
+    return result.scalar_one_or_none()
 
 async def authenticate_user(
     db: AsyncSession,

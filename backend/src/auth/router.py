@@ -9,14 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth
 
 from src.database import get_db
-from src.utils import save_to_db, get_object_or_404
+from src.utils import save_to_db
 from src.dependencies import get_current_user
-from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
+from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID, FRONTEND_HOST
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
     decode_jwt_token, create_token_response
 from src.auth.schemas import UserRegisterSchema, UserSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
-    activate_user 
+    activate_user, get_user_or_none
 from src.auth.models import UserModel
 
 logger = logging.getLogger(__name__)
@@ -37,9 +37,9 @@ oauth.register(
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
 )
 
-@router.get('/google/login')
-async def google_login(request: Request):
-    redirect_url = request.url_for('google_callback')
+@router.get('/google/url')
+async def get_google_oauth_redirect_url(request: Request):
+    redirect_url = f'{FRONTEND_HOST}/auth/google'
     return await oauth.google.authorize_redirect(request, redirect_url)
 
 @router.get('/google/callback')
@@ -51,10 +51,7 @@ async def google_callback(
     resp = await oauth.google.get('userinfo', token=token)
     user_info = resp.json()
 
-    user = await get_object_or_404(
-        db, UserModel,
-        UserModel.email == user_info['email'], detail='User not found'
-    )
+    user = await get_user_or_none(db, user_info["email"])
 
     if user is None:
         username = ('_'.join(user_info['name'].split()).lower() + str(uuid4()))[:16]
@@ -74,7 +71,9 @@ async def google_callback(
 
     access_token = create_access_token({'sub': user.username})
     refresh_token = create_refresh_token({'sub': user.username})
-    return create_token_response(access_token, refresh_token)
+    user_dict = UserSchema.model_validate(user).model_dump(mode='json')
+
+    return create_token_response(access_token, refresh_token, user_dict)
 
 @router.post('/token')
 async def login(

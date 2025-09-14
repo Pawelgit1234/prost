@@ -7,7 +7,7 @@ import uvicorn
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.routers import main_router
-from src.settings import SECRET_KEY, FRONTEND_HOSTS
+from src.settings import SECRET_KEY, FRONTEND_HOST
 from src.logger import setup_logging
 from src.database import create_indices
 from src.invitations.background import periodic_invitation_cleaner
@@ -24,7 +24,7 @@ app.include_router(main_router)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY) # for google-auth
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=FRONTEND_HOSTS,
+    allow_origins=[FRONTEND_HOST],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

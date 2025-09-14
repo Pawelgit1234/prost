@@ -96,7 +96,9 @@ export const useUserStore = defineStore('user', {
         throw error;
       }
     },
+    async loginWithGoogle(code: string, state: string) {
 
+    },
     persist: true
   }
 })

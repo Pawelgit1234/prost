@@ -1,7 +1,7 @@
 import os
 
 HOST = 'http://127.0.0.1:8000'
-FRONTEND_HOSTS = ['http://localhost:5173']
+FRONTEND_HOST = 'http://localhost:5173'
 HTTPS = False
 
 DATABASE_URL = (

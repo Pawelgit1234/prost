@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Messenger from '../views/Messenger.vue'
+import GoogleCallback from '../views/GoogleCallback.vue';
 
 const routes = [
   {
@@ -13,6 +14,11 @@ const routes = [
     path: "/register",
     name: "Register",
     component: Register,
+  },
+  {
+    path: "/auth/google",
+    name: "Google",
+    component: GoogleCallback,
   },
   {
     path: "/messenger",

@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useUserStore } from '../store/user';
 import pinia from '../store';
+import { useRouter } from 'vue-router';
 
 const emailOrUsername = ref("");
 const password = ref("");
@@ -19,10 +20,13 @@ async function submit() {
 
   const userStore = useUserStore(pinia);
   await userStore.login(emailOrUsername.value, password.value);
+
+  const router = useRouter();
+  router.push("/messenger")
 }
 
 async function loginWithGoogle() {
-  console.log("Login with Google clicked");
+  window.location.href = import.meta.env.VITE_API_ENDPOINT + '/auth/google/url'
 }
 
 </script>
