@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from secrets import token_urlsafe
 
+from redis.asyncio import Redis
 import jwt
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
@@ -11,7 +13,8 @@ from fastapi.responses import JSONResponse
 
 from src.settings import SECRET_KEY, ALGORITHM, \
     SMTP_SERVER, SMTP_PORT, SENDER_EMAIL, SENDER_EMAIL_PASSWORD, \
-    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, HTTPS
+    ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, HTTPS, \
+    REDIS_GOOGLE_STATE_KEY, GOOGLE_STATE_LIFETIME
 from src.auth.schemas import TokenDataSchema
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -99,3 +102,18 @@ async def send_html_email(to_email: str, subject: str, text: str) -> None:
         username=SENDER_EMAIL,
         password=SENDER_EMAIL_PASSWORD
     )
+
+async def create_state(r: Redis) -> str:
+    state = token_urlsafe(16)
+    await r.setex(REDIS_GOOGLE_STATE_KEY.format(state), GOOGLE_STATE_LIFETIME, "1")
+    return state
+
+async def validate_state(r: Redis, state: str) -> bool:
+    key = REDIS_GOOGLE_STATE_KEY.format(state)
+    exists = await r.get(key)
+
+    if exists:
+        await r.delete(key)
+        return True
+    return False
+    

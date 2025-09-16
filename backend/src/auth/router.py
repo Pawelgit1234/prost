@@ -3,17 +3,18 @@ from uuid import uuid4, UUID
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, \
-    Request, Cookie, Response
+    Request, Cookie, Response, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth
+from redis.asyncio import Redis
 
-from src.database import get_db
+from src.database import get_db, get_redis
 from src.utils import save_to_db
 from src.dependencies import get_current_user
 from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID, FRONTEND_HOST
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
-    decode_jwt_token, create_token_response
+    decode_jwt_token, create_token_response, create_state, validate_state
 from src.auth.schemas import UserRegisterSchema, UserSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
     activate_user, get_user_or_none
@@ -37,17 +38,30 @@ oauth.register(
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
 )
 
-@router.get('/google/url')
-async def get_google_oauth_redirect_url(request: Request):
-    redirect_url = f'{FRONTEND_HOST}/auth/google'
-    return await oauth.google.authorize_redirect(request, redirect_url)
-
-@router.get('/google/callback')
-async def google_callback(
-    db: Annotated[AsyncSession, Depends(get_db)],
+@router.get('/google/uri')
+async def get_google_oauth_redirect_uri(
+    r: Annotated[Redis, Depends(get_redis)],
     request: Request
 ):
-    token = await oauth.google.authorize_access_token(request)
+    redirect_url = f'{FRONTEND_HOST}/auth/google'
+    state = await create_state(r)
+    return await oauth.google.authorize_redirect(request, redirect_url, state=state)
+
+@router.post('/google/callback')
+async def google_callback(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    code: Annotated[str, Body(...)],
+    state: Annotated[str, Body(...)],
+):
+    # checks state
+    if not validate_state(r, state):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='invalid state')
+    
+    token = await oauth.google.fetch_access_token(
+        redirect_uri=FRONTEND_HOST + "/auth/google",
+        code=code
+    )
     resp = await oauth.google.get('userinfo', token=token)
     user_info = resp.json()
 

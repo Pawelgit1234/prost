@@ -20,6 +20,8 @@ REDIS_USER_JOIN_REQUESTS_KEY = 'user_join_requests_{}' # 'user_join_requests_{us
 REDIS_GROUP_JOIN_REQUESTS_KEY = 'group_join_requests_{}' # 'group_join_requests_{group_uuid}'
 REDIS_USER_INVITATION_KEY = 'user_invitation_{}' # 'user_invitation_{user_uuid}'
 REDIS_GROUP_INVITATION_KEY = 'group_invitation_{}' # 'group_invitation_{group_uuid}'
+REDIS_GOOGLE_STATE_KEY = 'google_state_{}' # 'google_state_{state}'
+GOOGLE_STATE_LIFETIME = 60 * 5 # 5 minutes
 REDIS_SEARCH_HISTORY_KEY = 'search_history_{}' # 'history_{user_uuid}'
 SEARCH_HISTORY_SIZE = 100
 

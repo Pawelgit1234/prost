@@ -96,8 +96,19 @@ export const useUserStore = defineStore('user', {
         throw error;
       }
     },
-    async loginWithGoogle(code: string, state: string) {
 
+    async loginWithGoogle(code: string, state: string) {
+      try {
+        const response = await axiosInstance.post("/auth/google/callback", {
+          code,
+          state,
+        });
+        let data = response.data; // { user, access_token, token_type } 
+        this.accessToken = data.access_token;
+        this.currentUser = data.user as UserType;
+      } catch (error) {
+        console.log("Error during Login with Google: ", error);
+      }
     },
     persist: true
   }

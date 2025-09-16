@@ -26,7 +26,7 @@ async function submit() {
 }
 
 async function loginWithGoogle() {
-  window.location.href = import.meta.env.VITE_API_ENDPOINT + '/auth/google/url'
+  window.location.href = import.meta.env.VITE_API_ENDPOINT + '/auth/google/uri'
 }
 
 </script>
