@@ -3,6 +3,7 @@ import axiosInstance from '../api/axios'
 import { useFolderStore } from './folders'
 import { useChatStore } from './chats'
 import { useMessageStore } from './messages'
+import { useUserStore } from './users'
 
 export interface UserType {
   first_name: string
@@ -19,11 +20,11 @@ export interface UserType {
   updated_at: string
 }
 
-export const useUserStore = defineStore('user', {
+export const useAuthStore = defineStore('auth', {
   state: () => ({
     accessToken: null as string | null, // refreshToken in httponly
+    isLoggedIn: false, // True -> Login, Register, GoogleCallback unaviable | False -> Messenger unaviable
     currentUser: null as UserType | null,
-    otherUsers: [] as UserType[] | null,
   }),
   actions: {
     async logout() {
@@ -32,7 +33,6 @@ export const useUserStore = defineStore('user', {
       // cleans other data
       this.accessToken = null;
       this.currentUser = null;
-      this.otherUsers = [];
 
       const folderStore = useFolderStore();
       folderStore.$reset();
@@ -42,6 +42,11 @@ export const useUserStore = defineStore('user', {
 
       const messageStore = useMessageStore();
       messageStore.$reset();
+
+      const userStore = useUserStore();
+      userStore.$reset();
+
+      this.isLoggedIn = false;
     },
 
     async login(emailOrUsername: string, password: string) {
@@ -49,17 +54,16 @@ export const useUserStore = defineStore('user', {
         const formData = new FormData();
         formData.append("username", emailOrUsername);
         formData.append("password", password);
-        
-        const headers = {
-          Accept: "application/json",
-          "Content-Type": "application/x-www-form-urlencoded",
-        }
 
-        const response = await axiosInstance.post("auth/token", formData, { headers: headers });
+        const response = await axiosInstance.post("/auth/token", formData, {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          withCredentials: true,
+        });
         let data = response.data; // { user, access_token, token_type } 
 
         this.accessToken = data.access_token;
         this.currentUser = data.user as UserType;
+        this.isLoggedIn = true;
       } catch (error) {
         console.log("Error during Login: ", error);
         throw error;
@@ -85,12 +89,14 @@ export const useUserStore = defineStore('user', {
         };
 
         const response = await axiosInstance.post("/auth/register", payload, {
-          headers: { "Accept": "application/json" }
+          headers: { "Accept": "application/json" },
+          withCredentials: true,
         });
         let data = response.data; // { user, access_token, token_type } 
 
         this.accessToken = data.access_token;
         this.currentUser = data.user as UserType;
+        this.isLoggedIn = true;
       } catch (error) {
         console.log("Error during Register: ", error);
         throw error;
@@ -106,10 +112,13 @@ export const useUserStore = defineStore('user', {
         let data = response.data; // { user, access_token, token_type } 
         this.accessToken = data.access_token;
         this.currentUser = data.user as UserType;
+        this.isLoggedIn = true;
       } catch (error) {
         console.log("Error during Login with Google: ", error);
       }
-    },
-    persist: true
-  }
+    }
+  },
+  persist: {
+    pick: ['currentUser'] // access_token only in memory
+  },
 })

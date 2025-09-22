@@ -1,32 +1,40 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useUserStore } from '../store/user';
+import { useAuthStore } from '../store/auth';
 import pinia from '../store';
 import { useRouter } from 'vue-router';
+import type { AxiosError } from 'axios';
 
 const emailOrUsername = ref("");
 const password = ref("");
-const error = ref("");
+const errorMessage = ref("");
+
+const userStore = useAuthStore(pinia);
+const router = useRouter();
 
 async function submit() {
-  error.value = ""; 
+  errorMessage.value = ""; 
 
   if (!emailOrUsername.value.trim() || !password.value.trim()) {
-    error.value = "Please fill in all fields.";
+    errorMessage.value = "Please fill in all fields.";
     return;
   }
 
   console.log("Login: ", emailOrUsername.value, password.value);
 
-  const userStore = useUserStore(pinia);
-  await userStore.login(emailOrUsername.value, password.value);
-
-  const router = useRouter();
-  router.push("/messenger")
-}
-
-async function loginWithGoogle() {
-  window.location.href = import.meta.env.VITE_API_ENDPOINT + '/auth/google/uri'
+  try {
+    await userStore.login(emailOrUsername.value, password.value);
+    router.push("/messenger")
+  } catch (err) {
+    const axiosError = err as AxiosError;
+    if (axiosError.response?.status === 404) {
+      errorMessage.value = "User was not found";
+    } else if (axiosError.response?.status === 401) {
+      errorMessage.value = "Incorrect username or password";
+    } else {
+      errorMessage.value = "Something went wrong. Please try again later.";
+    }
+  }
 }
 
 </script>
@@ -36,15 +44,7 @@ async function loginWithGoogle() {
     <div class="card p-4 shadow-sm" style="width: 100%; max-width: 400px;">
       <h3 class="card-title text-center mb-3">Login</h3>
 
-      <!-- Google Login -->
-      <button
-        type="button"
-        class="btn google-btn w-100 mb-3 d-flex align-items-center justify-content-center"
-        @click="loginWithGoogle"
-      >
-        <img src="https://www.svgrepo.com/show/380993/google-logo-search-new.svg" alt="G" />
-        <span>Login with Google</span>
-      </button>
+      <ContinueWithGoogle/>
 
       <div class="text-center mb-3">or</div>
 
@@ -61,20 +61,17 @@ async function loginWithGoogle() {
             required
           />
         </div>
-        <div class="mb-3">
-          <label for="password" class="form-label">Password</label>
-          <input
-            v-model="password"
-            type="password"
-            class="form-control"
-            id="password"
-            placeholder="Enter your password"
-            required
-          />
-        </div>
 
-        <div v-if="error" class="alert alert-danger py-1 px-2 mb-3" role="alert">
-          {{ error }}
+        <PasswordInput
+          v-model="password"
+          id="password"
+          label="Password"
+          placeholder="Enter your password"
+          required
+        />
+
+        <div v-if="errorMessage" class="alert alert-danger py-1 px-2 mb-3" role="alert">
+          {{ errorMessage }}
         </div>
 
         <button type="submit" class="btn btn-primary w-100">Login</button>

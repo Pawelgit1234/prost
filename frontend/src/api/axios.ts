@@ -1,7 +1,7 @@
 import axios from "axios";
 
 import pinia from "../store"; 
-import { useUserStore } from "../store/user";
+import { useAuthStore } from "../store/auth";
 import router from "../router";
 
 const axiosInstance = axios.create({
@@ -13,13 +13,13 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const userStore = useUserStore(pinia);
+        const userStore = useAuthStore(pinia);
         const originalRequest = error.config;
 
         // invalid refresh token
         if (error.response?.status === 401 && originalRequest.url === "/auth/refresh/") {
             await userStore.logout();
-            router.push("/signin");
+            router.push("/login");
         }
     
         // acces token expired
@@ -30,7 +30,7 @@ axiosInstance.interceptors.response.use(
                 return axiosInstance(originalRequest);
             } catch (err) {
                 await userStore.logout();
-                router.push("/signin");
+                router.push("/login");
             }
         }
         throw error;
@@ -38,7 +38,7 @@ axiosInstance.interceptors.response.use(
 );
 
 axiosInstance.interceptors.request.use((config) => {
-  const userStore = useUserStore(pinia);
+  const userStore = useAuthStore(pinia);
 
   if (config.url === "/auth/refresh/") {
     // for refresh token

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useUserStore } from "../store/user";
+import { useAuthStore } from "../store/auth";
 import { BAlert, BSpinner, BButton } from 'bootstrap-vue-next'
 
-const userStore = useUserStore();
+const userStore = useAuthStore();
 
 const loading = ref(true);
 const success = ref(false);

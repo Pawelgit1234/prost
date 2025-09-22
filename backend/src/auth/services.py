@@ -59,7 +59,7 @@ async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserMo
         if 'ix_users_email' in str(e.orig):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail='Email already registered'
+                detail='Email already taken'
             )
         elif 'ix_users_username' in str(e.orig):
             raise HTTPException(

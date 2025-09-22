@@ -13,10 +13,12 @@ declare module 'vue' {
     BCard: typeof import('bootstrap-vue-next/components/BCard')['BCard']
     ChatList: typeof import('./src/components/Sidebar/ChatList.vue')['default']
     ChatWindow: typeof import('./src/components/Chat/ChatWindow.vue')['default']
+    ContinueWithGoogle: typeof import('./src/components/Auth/ContinueWithGoogle.vue')['default']
     FolderList: typeof import('./src/components/Sidebar/FolderList.vue')['default']
     Message: typeof import('./src/components/Chat/Message.vue')['default']
     MessageList: typeof import('./src/components/Chat/MessageList.vue')['default']
     Messenger: typeof import('./src/components/Messenger.vue')['default']
+    PasswordInput: typeof import('./src/components/Inputs/PasswordInput.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }
