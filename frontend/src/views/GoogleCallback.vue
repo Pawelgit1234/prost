@@ -36,21 +36,31 @@ onMounted(async () => {
 
 <template>
   <div class="d-flex justify-content-center align-items-center vh-100">
-    <div class="w-50 text-center">
+    <div class="w-50">
       <!-- Loading -->
-      <div v-if="loading" class="p-5">
+      <div v-if="loading" class="text-center p-5">
         <BSpinner label="Loading..." variant="primary" class="mb-3" />
         <h4>Signing in with Google...</h4>
       </div>
 
       <!-- Error -->
-      <BAlert v-else-if="error" show variant="danger" class="p-4">
+      <BAlert
+        v-else-if="error"
+        show
+        variant="danger"
+        class="p-4 d-flex flex-column align-items-center text-center"
+      >
         <h5 class="alert-heading">Authentication Error</h5>
         <p>{{ error }}</p>
       </BAlert>
 
       <!-- Success -->
-      <BAlert v-else-if="success" show variant="success" class="p-4">
+      <BAlert
+        v-else-if="success"
+        show
+        variant="success"
+        class="p-4 d-flex flex-column align-items-center text-center"
+      >
         <h4 class="alert-heading">Welcome {{ userStore.currentUser?.username }}!</h4>
         <p>You have successfully signed in with Google 🎉</p>
         <BButton variant="primary" href="/messenger" class="mt-3">Go to Messenger</BButton>
@@ -58,6 +68,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-<style>
-</style>

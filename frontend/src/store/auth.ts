@@ -119,6 +119,6 @@ export const useAuthStore = defineStore('auth', {
     }
   },
   persist: {
-    pick: ['currentUser'] // access_token only in memory
+    pick: ['currentUser', 'isLoggedIn'] // access_token only in memory
   },
 })
