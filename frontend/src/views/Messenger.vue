@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFolderStore } from '../store/folders';
 import { useChatStore } from '../store/chats';
-import { useMessageStore, type MessageType } from '../store/messages';
+import { useMessageStore, type MessageI } from '../store/messages';
 
 import FolderList from '../components/Sidebar/FolderList.vue';
 import ChatList from '../components/Sidebar/ChatList.vue';
@@ -11,28 +11,25 @@ const folderStore = useFolderStore();
 const chatStore = useChatStore();
 const messageStore = useMessageStore();
 
-function handleSendMessage(msg: MessageType) {
+function handleSendMessage(msg: MessageI) {
   messageStore.addMessage(msg);
+}
+
+async function fetchData() {
+  // await folderStore.fetchFolders();
+  await chatStore.fetchChats();
 }
 </script>
 
 <template>
   <div class="messenger">
     <div class="folders">
-      <FolderList
-        :folders="folderStore.folders"
-        :selectFolderUuid="folderStore.selectedFolderUuid"
-        @update:selectedFolder="folderStore.selectFolder"
-      />
     </div>
 
     <div class="chats">
-      <ChatList
-        :chats="chatStore.getChatsByFolder(folderStore.selectedFolderUuid)"
-        :selectedChatUuid="chatStore.selectedChatUuid"
-        @update:selectedChat="chatStore.selectChat"
-      />
     </div>
+
+    <button v-on:click="fetchData"></button>
 
     <div class="chat-window">
       <ChatWindow

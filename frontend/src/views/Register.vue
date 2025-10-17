@@ -82,7 +82,7 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <div class="container d-flex justify-content-center align-items-center vh-100">
+  <div class="register container d-flex justify-content-center align-items-center vh-100">
     <div class="card p-4 shadow-sm" style="width: 100%; max-width: 450px;">
       <h3 class="card-title text-center mb-3">Register</h3>
 
@@ -154,3 +154,9 @@ const onSubmit = handleSubmit(async (values) => {
     </div>
   </div>
 </template>
+
+<style>
+.register {
+  margin-top: 5%;
+}
+</style>

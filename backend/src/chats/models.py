@@ -33,8 +33,8 @@ class ChatModel(Base, TimestampMixin):
     # for groups
     name: Mapped[str] = mapped_column(String(100), nullable=True) # null for normal chats
     description: Mapped[str] = mapped_column(String(100), nullable=True)
-    is_open_for_messages: Mapped[bool] = mapped_column(default=False) # False = needs a join request (for groups)
-    is_visible: Mapped[bool] = mapped_column(default=False) # search
+    is_open_for_messages: Mapped[bool] = mapped_column(default=False, nullable=True) # False = needs a join request (for groups)
+    is_visible: Mapped[bool] = mapped_column(default=False, nullable=True) # search
     avatar: Mapped[str] = mapped_column(nullable=True) # avatar will be set later in settings
 
     messages: Mapped[list["MessageModel"]] = relationship(back_populates="chat")

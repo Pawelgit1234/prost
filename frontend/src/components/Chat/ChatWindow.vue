@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
-import type { MessageType } from '../../store/messages';
+import type { MessageI } from '../../store/messages';
 import MessageList from './MessageList.vue';
 
 const props = defineProps<{
   chatUuid: string;
-  messages: MessageType[];
+  messages: MessageI[];
 }>();
 
 const emit = defineEmits<{
-  (e: 'sendMessage', msg: MessageType): void;
+  (e: 'sendMessage', msg: MessageI): void;
 }>();
 
 const newMessage = ref('');
@@ -24,7 +24,7 @@ watch(() => props.messages.length, async () => {
 function sendMessage() {
   if (!newMessage.value.trim()) return;
 
-  const msg: MessageType = {
+  const msg: MessageI = {
     chatUuid: props.chatUuid,
     author: 'Me',
     text: newMessage.value,

@@ -1,26 +1,68 @@
-import asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from elasticsearch import AsyncElasticsearch
-from redis.asyncio import Redis
 from fastapi import HTTPException, status
 
-from src.settings import REDIS_CHATS_KEY, ELASTIC_CHATS_INDEX_NAME
-from src.utils import invalidate_cache
+from src.settings import ELASTIC_CHATS_INDEX_NAME
 from src.auth.models import UserModel
 from src.folders.models import FolderModel
 from src.folders.enums import FolderType
 from src.chats.models import ChatModel
+from src.chats.schemas import ChatSchema
 from src.chats.enums import ChatType
+from src.messages.models import MessageModel
+from src.messages.utils import message_model_to_schema
+
+def chat_and_message_model_to_schema(
+    chat: ChatModel,
+    last_message: MessageModel
+) -> ChatSchema:
+    return ChatSchema(
+        uuid=str(chat.uuid),
+        chat_type=chat.chat_type,
+        name=chat.name,
+        description=chat.description,
+        avatar=chat.avatar,
+        is_open_for_messages=chat.is_open_for_messages,
+        is_visible=chat.is_visible,
+        last_message=message_model_to_schema(last_message) if last_message is not None else None,
+        created_at=chat.created_at,
+        updated_at=chat.updated_at
+    )
+
+def other_user_to_chat_schema(
+    user: UserModel,
+    chat: ChatModel,
+    last_message: MessageModel
+) -> ChatSchema:
+    # finds the other user
+    other_user = next(
+        (assoc.user for assoc in chat.user_associations if assoc.user_id != user.id),
+        None
+    )
+    if not other_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Something went wrong")
+
+    return ChatSchema(
+        uuid=str(chat.uuid),
+        chat_type=ChatType.NORMAL,
+        name=other_user.username,
+        description=other_user.description,
+        avatar=other_user.avatar,
+        is_open_for_messages=other_user.is_open_for_messages,
+        is_visible=other_user.is_visible,
+        last_message=message_model_to_schema(last_message) if last_message is not None else None,
+        created_at=chat.created_at,
+        updated_at=chat.updated_at
+    )
 
 def group_folders_by_type(folders: list[FolderModel]) -> dict[FolderType, FolderModel]:
     return {f.folder_type: f for f in folders}
 
-async def invalidate_chat_cache(r: Redis, *folders: FolderModel, user: UserModel):
-    await asyncio.gather(*[
-        invalidate_cache(r, REDIS_CHATS_KEY, folder.uuid, user.uuid) for folder in folders
-    ])
+# async def invalidate_chat_cache(r: Redis, *folders: FolderModel, user: UserModel):
+#     await asyncio.gather(*[
+#         invalidate_cache(r, REDIS_CHATS_KEY, folder.uuid, user.uuid) for folder in folders
+#     ])
 
 def get_group_users_uuids(chat: ChatModel) -> list[str]:
     return [str(assoc.user.uuid) for assoc in chat.user_associations]

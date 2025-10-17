@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-export interface MessageType {
+export interface MessageI {
   uuid: string
   text: string
   author: string
@@ -12,10 +12,10 @@ export interface MessageType {
 
 export const useMessageStore = defineStore('messages', {
   state: () => ({
-    messages: [] as MessageType[]
+    messages: [] as MessageI[]
   }),
   actions: {
-    addMessage(msg: MessageType) {
+    addMessage(msg: MessageI) {
       this.messages.push(msg)
     },
     updateMessage(uuid: string, text: string) {
@@ -25,7 +25,7 @@ export const useMessageStore = defineStore('messages', {
         msg.wasUpdated = true
       }
     },
-    getMessagesByChat(chatUuid: string): MessageType[] {
+    getMessagesByChat(chatUuid: string): MessageI[] {
       return this.messages.filter(m => m.chatUuid === chatUuid)
     }
   },

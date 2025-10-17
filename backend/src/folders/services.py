@@ -10,7 +10,6 @@ from sqlalchemy.orm import selectinload
 from src.utils import save_to_db
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
-from src.chats.schemas import ChatSchema
 from src.chats.utils import is_user_in_chat
 from src.folders.models import FolderModel, FolderChatAssociationModel
 from src.folders.schemas import CreateFolderSchema
@@ -49,38 +48,40 @@ async def get_folder_chat_assoc_or_404(
 async def get_folders_list(db: AsyncSession, user: UserModel) -> list[FolderModel]:
     result = await db.execute(
         select(FolderModel)
+        .options(selectinload(FolderModel.chat_associations)
+                 .selectinload(FolderChatAssociationModel.chat))
         .where(FolderModel.user_id == user.id)
         .order_by(FolderModel.position)
     )
     return result.scalars().all()
 
-async def get_chats_list_from_folder(
-    db: AsyncSession, 
-    user: UserModel,
-    folder_uuid: UUID
-) -> list[ChatSchema]:
-    result = await db.execute(
-        select(FolderModel.user_id, ChatModel, FolderChatAssociationModel.is_pinned)
-        .join(FolderChatAssociationModel, ChatModel.id == FolderChatAssociationModel.chat_id)
-        .join(FolderModel, FolderChatAssociationModel.folder_id == FolderModel.id)
-        .where(FolderModel.uuid == folder_uuid)
-    )
-    rows = result.all()
-
-    # checks if this folder belongs to the user
-    if rows[0][0] != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access to Folder forbidden"
-        )
-
-    return [
-        ChatSchema.model_validate({
-            **chat.__dict__,
-            "is_pinned": is_pinned
-        })
-        for _, chat, is_pinned in rows
-    ]
+# async def get_chats_list_from_folder(
+#     db: AsyncSession, 
+#     user: UserModel,
+#     folder_uuid: UUID
+# ) -> list[ChatSchema]:
+#     result = await db.execute(
+#         select(FolderModel.user_id, ChatModel, FolderChatAssociationModel.is_pinned)
+#         .join(FolderChatAssociationModel, ChatModel.id == FolderChatAssociationModel.chat_id)
+#         .join(FolderModel, FolderChatAssociationModel.folder_id == FolderModel.id)
+#         .where(FolderModel.uuid == folder_uuid)
+#     )
+#     rows = result.all()
+# 
+#     # checks if this folder belongs to the user
+#     if rows[0][0] != user.id:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Access to Folder forbidden"
+#         )
+# 
+#     return [
+#         ChatSchema.model_validate({
+#             **chat.__dict__,
+#             "is_pinned": is_pinned
+#         })
+#         for _, chat, is_pinned in rows
+#     ]
 
 async def get_last_position(db: AsyncSession, user: UserModel) -> int:
     result = await db.execute(

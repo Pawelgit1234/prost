@@ -11,16 +11,16 @@ from redis.asyncio import Redis
 from src.settings import REDIS_FOLDERS_KEY, REDIS_CHATS_KEY, \
     REDIS_CACHE_EXPIRE_SECONDS
 from src.database import get_db, get_redis
-from src.utils import invalidate_cache, get_object_or_404, serialize_model_list, wrap_list_response
+from src.utils import invalidate_cache, get_object_or_404, wrap_list_response
 from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
-from src.chats.schemas import ChatSchema
 from src.chats.models import ChatModel
 from src.folders.models import FolderModel
 from src.folders.schemas import CreateFolderSchema, FolderSchema
 from src.folders.services import create_folder_in_db, delete_folder_in_db, \
     get_folders_list, add_chat_to_folder, delete_chat_from_folder, \
-    pin_chat_in_folder, get_chats_list_from_folder, get_folder_chat_assoc_or_404
+    pin_chat_in_folder, get_folder_chat_assoc_or_404
+from src.folders.utils import folder_model_to_schema
     
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ async def get_all_folders(
         return json.loads(data)
 
     folder_models = await get_folders_list(db, current_user)
-    folders = serialize_model_list(folder_models, FolderSchema)
+    folders = [json.loads(folder_model_to_schema(folder).model_dump_json()) for folder in folder_models]
     data = wrap_list_response(folders)
 
     await r.set(
@@ -48,28 +48,28 @@ async def get_all_folders(
 
     return data
 
-@router.get('/{folder_uuid}/')
-async def get_chats_from_folder(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    r: Annotated[Redis, Depends(get_redis)],
-    current_user: Annotated[UserModel, Depends(get_active_current_user)],
-    folder_uuid: UUID
-):
-    redis_key = REDIS_CHATS_KEY.format(folder_uuid, current_user.uuid)
-    if data := await r.get(redis_key):
-        return json.loads(data)
-
-    chat_models = await get_chats_list_from_folder(db, current_user, folder_uuid)
-    chats = serialize_model_list(chat_models, ChatSchema)
-    data = wrap_list_response(chats)
-
-    await r.set(
-        redis_key,
-        json.dumps(data),
-        REDIS_CACHE_EXPIRE_SECONDS
-    )
-
-    return data
+# @router.get('/{folder_uuid}/')
+# async def get_chats_from_folder(
+#     db: Annotated[AsyncSession, Depends(get_db)],
+#     r: Annotated[Redis, Depends(get_redis)],
+#     current_user: Annotated[UserModel, Depends(get_active_current_user)],
+#     folder_uuid: UUID
+# ):
+#     redis_key = REDIS_CHATS_KEY.format(folder_uuid, current_user.uuid)
+#     if data := await r.get(redis_key):
+#         return json.loads(data)
+# 
+#     chat_models = await get_chats_list_from_folder(db, current_user, folder_uuid)
+#     chats = serialize_model_list(chat_models, ChatSchema)
+#     data = wrap_list_response(chats)
+# 
+#     await r.set(
+#         redis_key,
+#         json.dumps(data),
+#         REDIS_CACHE_EXPIRE_SECONDS
+#     )
+# 
+#    return data
 
 # only for custom
 @router.post('/')
@@ -118,7 +118,7 @@ async def add_chat(
         options=[selectinload(ChatModel.user_associations)]
     )
     await add_chat_to_folder(db, current_user, folder, chat)
-    await invalidate_cache(r, REDIS_CHATS_KEY, folder_uuid, current_user.uuid)
+    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
     logger.info(f'Chat added to folder {folder.name} by {current_user.username}')
     return {'success': True}
 
@@ -133,7 +133,7 @@ async def delete_chat(
 ):
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
     await delete_chat_from_folder(db, current_user, assoc)
-    await invalidate_cache(r, REDIS_CHATS_KEY, folder_uuid, current_user.uuid)
+    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
     logger.info(f'Chat deleted from folder {assoc.folder.name} by {current_user.username}')
     return {'success': True}
 
@@ -148,6 +148,6 @@ async def pin_chat(
 ):
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
     is_pinned = await pin_chat_in_folder(db, current_user, assoc)
-    await invalidate_cache(r, REDIS_CHATS_KEY, folder_uuid, current_user.uuid)
+    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
     logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
     return {'is_pinned': is_pinned}

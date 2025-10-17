@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
 from src.chats.enums import ChatType
+from src.messages.schemas import MessageSchema
 
 class CreateChatSchema(BaseModel):
     chat_type: ChatType  # says what type of chat it is: group or normal chat
@@ -17,11 +18,16 @@ class CreateChatSchema(BaseModel):
             raise ValueError("Normal chats cannot have a group description")
         return self
 
-class ChatSchema(CreateChatSchema):
-    is_pinned: bool = Field(default=False)
+class ChatSchema(BaseModel):
+    uuid: UUID
+    chat_type: ChatType
+    name: str
+    description: str
+    avatar: str | None = Field(default=None) # optional
+    is_open_for_messages: bool
+    is_visible: bool
     created_at: datetime
     updated_at: datetime
-    uuid: UUID
-    avatar: str | None = Field(default=None) # optional
+    last_message: MessageSchema | None = Field(default=None) # optional
 
     model_config = ConfigDict(from_attributes=True)

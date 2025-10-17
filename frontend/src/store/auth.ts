@@ -5,7 +5,7 @@ import { useChatStore } from './chats'
 import { useMessageStore } from './messages'
 import { useUserStore } from './users'
 
-export interface UserType {
+export interface UserI {
   first_name: string
   last_name: string
   username: string
@@ -24,7 +24,7 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     accessToken: null as string | null, // refreshToken in httponly
     isLoggedIn: false, // True -> Login, Register, GoogleCallback unaviable | False -> Messenger unaviable
-    currentUser: null as UserType | null,
+    currentUser: null as UserI | null,
   }),
   actions: {
     async logout() {
@@ -62,7 +62,7 @@ export const useAuthStore = defineStore('auth', {
         let data = response.data; // { user, access_token, token_type } 
 
         this.accessToken = data.access_token;
-        this.currentUser = data.user as UserType;
+        this.currentUser = data.user as UserI;
         this.isLoggedIn = true;
       } catch (error) {
         console.log("Error during Login: ", error);
@@ -95,7 +95,7 @@ export const useAuthStore = defineStore('auth', {
         let data = response.data; // { user, access_token, token_type } 
 
         this.accessToken = data.access_token;
-        this.currentUser = data.user as UserType;
+        this.currentUser = data.user as UserI;
         this.isLoggedIn = true;
       } catch (error) {
         console.log("Error during Register: ", error);
@@ -111,7 +111,7 @@ export const useAuthStore = defineStore('auth', {
         });
         let data = response.data; // { user, access_token, token_type } 
         this.accessToken = data.access_token;
-        this.currentUser = data.user as UserType;
+        this.currentUser = data.user as UserI;
         this.isLoggedIn = true;
       } catch (error) {
         console.log("Error during Login with Google: ", error);

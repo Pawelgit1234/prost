@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue';
-import type { FolderType } from '../../store/folders';
+import type { FolderI } from '../../store/folders';
 
 const props = defineProps<{
-    folders: FolderType[];
+    folders: FolderI[];
     selectFolderUuid: string
 }>();
 

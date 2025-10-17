@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
-import type { UserType } from "./auth";
+import type { UserI } from "./auth";
 
 export const useUserStore = defineStore('users', {
   state: () => ({
-    users: [] as UserType[] | null,
+    users: [] as UserI[] | null,
   }),
   actions: {
 

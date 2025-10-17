@@ -4,24 +4,72 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, aliased
 from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
 
-from src.settings import REDIS_CHATS_KEY, ELASTIC_CHATS_INDEX_NAME
-from src.utils import save_to_db, invalidate_cache, get_object_or_404
+from src.utils import save_to_db, get_object_or_404
 from src.auth.models import UserModel
+from src.messages.models import MessageModel
 from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.enums import ChatType
-from src.chats.utils import group_folders_by_type, invalidate_chat_cache, get_group_users_uuids,\
-    ensure_user_in_chat_or_403, update_group_members_in_elastic, ensure_no_normal_chat_or_403
+from src.chats.utils import group_folders_by_type, ensure_user_in_chat_or_403,\
+    update_group_members_in_elastic, ensure_no_normal_chat_or_403, chat_and_message_model_to_schema,\
+    other_user_to_chat_schema
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 
 logger = logging.getLogger(__name__)
 
-# is shorter
+async def get_all_chats_with_last_message(
+    db: AsyncSession, user: UserModel
+) -> list[tuple[ChatModel, MessageModel]]:
+
+    # subquery: last message for every chat
+    last_message_subq = (
+        select(MessageModel.id)
+        .where(MessageModel.chat_id == ChatModel.id)
+        .order_by(MessageModel.created_at.desc())
+        .limit(1)
+        .correlate(ChatModel)
+        .scalar_subquery()
+    )
+
+    LastMessage = aliased(MessageModel)
+
+    stmt = (
+        select(
+            ChatModel,
+            LastMessage
+        )
+        .join(UserChatAssociationModel, ChatModel.id == UserChatAssociationModel.chat_id)
+        .outerjoin(LastMessage, LastMessage.id == last_message_subq)
+        .where(UserChatAssociationModel.user_id == user.id)
+        .order_by(ChatModel.created_at.desc())
+        .options(
+            selectinload(ChatModel.user_associations)
+            .selectinload(UserChatAssociationModel.user)
+        )
+    )
+
+    result = await db.execute(stmt)
+    rows = result.all()
+    return rows
+
+async def get_chat_schemas(db: AsyncSession, user: UserModel):
+    chats = await get_all_chats_with_last_message(db, user)
+    schemas = []
+
+    for chat, last_message in chats:
+        if chat.chat_type == ChatType.GROUP:
+            schemas.append(chat_and_message_model_to_schema(chat, last_message))
+        else:
+            schemas.append(other_user_to_chat_schema(user, chat, last_message))
+
+    return schemas
+
+# is shorter in that way
 async def get_chat_or_404(db: AsyncSession, chat_uuid: UUID) -> ChatModel:
     return await get_object_or_404(
         db, ChatModel, ChatModel.uuid == chat_uuid, detail='Chat not found',
@@ -35,7 +83,6 @@ async def get_chat_or_404(db: AsyncSession, chat_uuid: UUID) -> ChatModel:
 
 async def create_chat_in_db(
     db: AsyncSession,
-    r: Redis,
     current_user: UserModel,
     chat_info: CreateChatSchema
 ) -> ChatModel:
@@ -55,8 +102,6 @@ async def create_chat_in_db(
     all_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.ALL], chat=chat)
     db.add(all_folder_assoc)
 
-    await invalidate_cache(r, REDIS_CHATS_KEY, folders[FolderType.ALL].uuid, current_user.uuid)
-    
     if chat_info.chat_type == ChatType.NORMAL:
         chats_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.CHATS], chat=chat)
         other_user = await get_object_or_404(
@@ -73,18 +118,10 @@ async def create_chat_in_db(
         other_chat_assoc = UserChatAssociationModel(user=other_user, chat=chat)
         db.add_all([other_chat_assoc, chats_folder_assoc, other_chats_folder_assoc, other_all_folder_assoc])
         
-        await invalidate_chat_cache(
-            r,
-            folders[FolderType.CHATS],
-            other_folders[FolderType.ALL],
-            other_folders[FolderType.CHATS],
-            user=current_user
-        )
     elif chat_info.chat_type == ChatType.GROUP:
         group_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.GROUPS], chat=chat)
         db.add(group_folder_assoc)
-        await invalidate_cache(r, REDIS_CHATS_KEY, folders[FolderType.GROUPS].uuid, current_user.uuid)
-    
+
     # commit and flush
     chat = (await save_to_db(db, [chat]))[0]
     # loads user and folder associations
@@ -94,14 +131,13 @@ async def create_chat_in_db(
 
 async def delete_chat_in_db(
     db: AsyncSession,
-    r: Redis,
     user: UserModel,
     chat: ChatModel
 ) -> None: 
     ensure_user_in_chat_or_403(user, chat, 'Only group members can delete this chat')
 
-    folders = [assoc.folder for assoc in chat.folder_associations]
-    await invalidate_chat_cache(r, *folders, user=user)
+    # folders = [assoc.folder for assoc in chat.folder_associations]
+    # await invalidate_chat_cache(r, *folders, user=user)
 
     await db.delete(chat)
     await db.commit()
@@ -113,8 +149,8 @@ async def quit_group_in_db(
     current_user: UserModel,
     group: ChatModel
 ) -> None:
-    folders = [assoc.folder for assoc in group.folder_associations]
-    await invalidate_chat_cache(r, *folders, user=current_user)
+    # folders = [assoc.folder for assoc in group.folder_associations]
+    # await invalidate_chat_cache(r, *folders, user=current_user)
 
     # quit group
     for assoc in group.user_associations:
@@ -139,7 +175,6 @@ async def quit_group_in_db(
 
 async def add_user_to_group_in_db(
     db: AsyncSession,
-    r: Redis,
     es: AsyncElasticsearch,
     group: ChatModel,
     user: UserModel,
@@ -160,7 +195,6 @@ async def add_user_to_group_in_db(
         )
 
     folders = group_folders_by_type(await get_folders_list(db, user))
-    await invalidate_chat_cache(r, folders[FolderType.ALL], folders[FolderType.GROUPS], user=user)
 
     chat_association = UserChatAssociationModel(user=user, chat=group)
     all_folder_assoc = FolderChatAssociationModel(folder=folders[FolderType.ALL], chat=group)
@@ -173,17 +207,15 @@ async def add_user_to_group_in_db(
 
 async def user_add_user_to_group_in_db(
     db: AsyncSession,
-    r: Redis,
     es: AsyncElasticsearch,
     group: ChatModel,
     other_user: UserModel,
     user: UserModel
 ) -> ChatModel:
     """ User add other user into group """
-    from src.folders.services import get_folders_list
 
     ensure_user_in_chat_or_403(user, group, 'Only group members can add new users')
-    group = await add_user_to_group_in_db(db, r, es, group, other_user)
+    group = await add_user_to_group_in_db(db, es, group, other_user)
     logger.info(f"'{other_user.username}' added to group '{group.name}' by {user.username}")
 
     return group
