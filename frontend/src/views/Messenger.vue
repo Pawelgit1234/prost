@@ -1,35 +1,44 @@
 <script setup lang="ts">
 import { useFolderStore } from '../store/folders';
 import { useChatStore } from '../store/chats';
-import { useMessageStore, type MessageI } from '../store/messages';
 
+import ChatWindow from '../components/Chat/ChatWindow.vue';
+import { onMounted } from 'vue';
+import { useMessageStore } from '../store/messages';
 import FolderList from '../components/Sidebar/FolderList.vue';
 import ChatList from '../components/Sidebar/ChatList.vue';
-import ChatWindow from '../components/Chat/ChatWindow.vue';
 
 const folderStore = useFolderStore();
 const chatStore = useChatStore();
-const messageStore = useMessageStore();
+const messageStore= useMessageStore();
 
-function handleSendMessage(msg: MessageI) {
-  messageStore.addMessage(msg);
-}
+onMounted(async () => {
+  await Promise.all([
+    folderStore.fetchFolders(),
+    chatStore.fetchChats()
+  ])
+})
 
-async function fetchData() {
-  // await folderStore.fetchFolders();
-  await chatStore.fetchChats();
-}
+function handleSendMessage() {}
 </script>
 
 <template>
   <div class="messenger">
     <div class="folders">
+      <FolderList
+        :folders="folderStore.folders"
+        :selectFolderUuid="folderStore.selectedFolderUuid"
+        @update:selectedFolder="folderStore.selectFolder"
+      />
     </div>
 
     <div class="chats">
+      <ChatList
+        :chats="chatStore.chatsOfSelectedFolder"
+        :selectedChatUuid="chatStore.selectedChatUuid"
+        @update:selectedChat="chatStore.selectChat"
+      />
     </div>
-
-    <button v-on:click="fetchData"></button>
 
     <div class="chat-window">
       <ChatWindow

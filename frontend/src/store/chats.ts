@@ -1,11 +1,10 @@
 import { defineStore } from 'pinia'
 import axiosInstance from '../api/axios'
-
-export type ChatType = 'NORMAL' | 'GROUP'
+import { useFolderStore, type FolderI } from './folders'
 
 export interface ChatI {
   uuid: string
-  chat_type: ChatType
+  chat_type: string
   name: string
   description: string
   avatar?: string // url
@@ -21,23 +20,35 @@ export const useChatStore = defineStore('chats', {
     chats: [] as ChatI[],
     selectedChatUuid: '' as string
   }),
-  actions: {
-    addChat(chat: ChatI) {
-      this.chats.push(chat)
+  getters: {
+    selectedChat(state) {
+      return state.chats.find(c => c.uuid === state.selectedChatUuid)
     },
+    chatsOfSelectedFolder(state) {
+      const folderStore = useFolderStore()
+      const folder = folderStore.folders.find(f => f.uuid === folderStore.selectedFolderUuid)
+      if (!folder) return []
+      return state.chats.filter(c => folder.chat_uuids.includes(c.uuid))
+    }
+  },
+  actions: {
     selectChat(uuid: string) {
       this.selectedChatUuid = uuid
     },
-    getChatsByFolder() {
-
+    addChat(chat: ChatI) {
+      this.chats.push(chat)
+    },
+    getChatsByFolder(folder?: FolderI) {
+      if (!folder) return []
+      return this.chats.filter(c => folder.chat_uuids.includes(c.uuid))
     },
     async fetchChats() {
       try {
-        const response = await axiosInstance.get("/chats");
-        const data = response.data; // total, items->folders
-        this.chats = data.items as ChatI[];
+        const response = await axiosInstance.get("/chats")
+        const data = response.data // total, items->chats
+        this.chats = data.items as ChatI[]
       } catch (error) {
-        console.log("Error during fetching all chats: ", error);
+        console.error("Error fetching chats:", error)
       }
     }
   },

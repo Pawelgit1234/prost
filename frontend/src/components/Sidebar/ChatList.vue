@@ -25,7 +25,7 @@ function selectChat(chatUuid: string) {
       @click="selectChat(chat.uuid)"
     >
       <div class="chat-name">{{ chat.name }}</div>
-      <div class="chat-last-message">{{ chat.lastMessage }}</div>
+      <div class="chat-last-message">{{ chat.last_message }}</div>
     </div>
   </div>
 </template>

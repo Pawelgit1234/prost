@@ -13,7 +13,7 @@ INVITATION_CLEANING_SLEEP_TIME = 5 * 60 # 5 minutes
 
 REDIS_HOST = 'redis'
 REDIS_PORT = 6379
-REDIS_CACHE_EXPIRE_SECONDS = 60 * 60 # 1 hour
+REDIS_CACHE_EXPIRE_SECONDS = 1 # TODO: change to 1 hour
 REDIS_FOLDERS_KEY = 'folders_{}' # 'folders_{user_uuid}'
 REDIS_CHATS_KEY = 'chats_{}' # 'chats_{user_uuid}'
 REDIS_USER_JOIN_REQUESTS_KEY = 'user_join_requests_{}' # 'user_join_requests_{user_uuid}'

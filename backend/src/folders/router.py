@@ -37,12 +37,15 @@ async def get_all_folders(
         return json.loads(data)
 
     folder_models = await get_folders_list(db, current_user)
-    folders = [json.loads(folder_model_to_schema(folder).model_dump_json()) for folder in folder_models]
+    folders = [
+        folder_model_to_schema(folder).model_dump()
+        for folder in folder_models
+    ]
     data = wrap_list_response(folders)
 
     await r.set(
         redis_key,
-        json.dumps(data),
+        json.dumps(data, default=str),
         REDIS_CACHE_EXPIRE_SECONDS
     )
 

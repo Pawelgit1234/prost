@@ -18,7 +18,7 @@ def chat_and_message_model_to_schema(
     last_message: MessageModel
 ) -> ChatSchema:
     return ChatSchema(
-        uuid=str(chat.uuid),
+        uuid=chat.uuid,
         chat_type=chat.chat_type,
         name=chat.name,
         description=chat.description,
@@ -44,7 +44,7 @@ def other_user_to_chat_schema(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Something went wrong")
 
     return ChatSchema(
-        uuid=str(chat.uuid),
+        uuid=chat.uuid,
         chat_type=ChatType.NORMAL,
         name=other_user.username,
         description=other_user.description,

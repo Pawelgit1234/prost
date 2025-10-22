@@ -7,7 +7,7 @@ from src.chats.enums import ChatType
 from src.messages.schemas import MessageSchema
 
 class CreateChatSchema(BaseModel):
-    chat_type: ChatType  # says what type of chat it is: group or normal chat
+    chat_type: ChatType # says what type of chat it is: group or normal chat
     name: str = Field(max_length=100)  # group name or username
     group_description: str | None = Field(default=None, max_length=100)  # optional and only for groups
 

@@ -14,7 +14,6 @@ const emit = defineEmits<{
 function selectFolder(folderUuid: string) {
     emit('update:selectedFolder', folderUuid);
 }
-
 </script>
 
 <template>
@@ -25,7 +24,7 @@ function selectFolder(folderUuid: string) {
             :class="['folder-item', {selected: folder.uuid === selectFolderUuid}]"
             @click="selectFolder(folder.uuid)"
         >
-            {{ folder.name }}
+            {{ folder.name || folder.folder_type }}
         </div>
     </div>
 </template>

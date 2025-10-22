@@ -9,11 +9,13 @@ class CreateFolderSchema(BaseModel):
 
 class FolderSchema(BaseModel):
     uuid: UUID
-    name: str | None = Field(default=None, max_length=16)
+    name: str | None = Field(default=None)
     folder_type: FolderType
     position: int
 
     pinned_chats: list[UUID]
     chat_uuids: list[UUID]
+
+    # created_at & updated_at are unimportant here
 
     model_config = ConfigDict(from_attributes=True)

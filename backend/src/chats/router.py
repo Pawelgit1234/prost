@@ -34,13 +34,13 @@ async def get_all_chats(
     if data := await r.get(redis_key):
         return json.loads(data)
 
-    chats = await get_chat_schemas(db, current_user)
-    chats = serialize_model_list(chats, ChatSchema)
+    chats_schemas = await get_chat_schemas(db, current_user)
+    chats = [chat.model_dump() for chat in chats_schemas]
     data = wrap_list_response(chats)
 
     await r.set(
         redis_key,
-        json.dumps(data),
+        json.dumps(data, default=str),
         REDIS_CACHE_EXPIRE_SECONDS
     )
 
