@@ -35,6 +35,27 @@ export const useFolderStore = defineStore('folders', {
       } catch (error) {
         console.error("Error fetching folders:", error)
       }
+    },
+    async createFolder(name: string) {
+      try {
+        const response = await axiosInstance.post('/folders', { name })
+        const folder = response.data as FolderI
+        this.folders.push(folder)
+      } catch (error) {
+        console.error("Error creating new folder: ", error)
+      }
+    },
+    async deleteFolder(uuid: string) {
+      try {
+        const response = await axiosInstance.delete('/folders/' + uuid + '/')
+        if (response.data.success) {
+          this.folders = this.folders.filter((folder) => folder.uuid !== uuid)
+        } else {
+          console.error("Folder was not deleted")
+        }
+      } catch (error) {
+        console.error("Error deleting folder: ", error)
+      }
     }
   },
   persist: true

@@ -134,6 +134,7 @@ async def delete_chat(
     chat_uuid: UUID,
     folder_uuid: UUID
 ):
+    """ Removes chat from folder """
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
     await delete_chat_from_folder(db, current_user, assoc)
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
@@ -154,3 +155,8 @@ async def pin_chat(
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
     logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
     return {'is_pinned': is_pinned}
+
+# @router.post('move')
+# async def move_folder()
+
+# rename

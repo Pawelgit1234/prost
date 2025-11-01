@@ -13,8 +13,8 @@ class FolderSchema(BaseModel):
     folder_type: FolderType
     position: int
 
-    pinned_chats: list[UUID]
-    chat_uuids: list[UUID]
+    pinned_chats: list[UUID] | None = Field(default=None)
+    chat_uuids: list[UUID] | None = Field(default=None)
 
     # created_at & updated_at are unimportant here
 

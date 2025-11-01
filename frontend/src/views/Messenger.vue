@@ -58,7 +58,7 @@ function handleSendMessage() {}
 }
 
 .folders {
-  width: 200px;
+  width: 150px;
   border-right: 1px solid #ccc;
   overflow-y: auto;
 }

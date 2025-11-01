@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue';
-import type { FolderI } from '../../store/folders';
+import { defineProps, defineEmits, ref } from 'vue';
+import { useFolderStore, type FolderI } from '../../store/folders';
+import ModalTextInput from '../../common/ModalTextInput.vue';
+import ContextMenu from '../../common/ContextMenu.vue';
+
+const folderStore = useFolderStore()
 
 const props = defineProps<{
     folders: FolderI[];
@@ -14,6 +18,40 @@ const emit = defineEmits<{
 function selectFolder(folderUuid: string) {
     emit('update:selectedFolder', folderUuid);
 }
+
+const isModalOpen = ref(false)
+
+async function handleSubmit(name: string) {
+  await folderStore.createFolder(name)
+  isModalOpen.value = false
+}
+
+const isMenuVisible = ref(false)
+const menuX = ref(0)
+const menuY = ref(0)
+const selectedFolder = ref<FolderI | null>(null)
+
+function openMenu(e: MouseEvent, folder: FolderI) {
+  e.stopPropagation()
+
+  const protectedTypes = ['all', 'chats', 'groups', 'new']
+  if (protectedTypes.includes(folder.folder_type)) return
+
+  selectedFolder.value = folder
+  menuX.value = e.clientX
+  menuY.value = e.clientY
+  isMenuVisible.value = true
+}
+
+function closeMenu() {
+  isMenuVisible.value = false
+}
+
+// context menu actions
+async function handleDelete() {
+  if (selectedFolder.value) await folderStore.deleteFolder(selectedFolder.value.uuid)
+}
+
 </script>
 
 <template>
@@ -22,11 +60,36 @@ function selectFolder(folderUuid: string) {
             v-for="folder in folders"
             :key="folder.uuid"
             :class="['folder-item', {selected: folder.uuid === selectFolderUuid}]"
-            @click="selectFolder(folder.uuid)"
+            @click.left.prevent="selectFolder(folder.uuid)"
+            @click.right.prevent="openMenu($event, folder)"
         >
             {{ folder.name || folder.folder_type }}
         </div>
     </div>
+
+    <button @click="isModalOpen = true" class="add-folder-btn">
+      <i class="bi bi-plus-circle"></i>
+    </button>
+
+    <ModalTextInput
+      v-if="isModalOpen"
+      :visible="isModalOpen"
+      title="Create new folder"
+      placeholder="Enter folder name"
+      @submit="handleSubmit"
+      @close="isModalOpen = false"
+    />
+
+    <!-- Context Menu -->
+    <ContextMenu
+      :visible="isMenuVisible"
+      :x="menuX"
+      :y="menuY"
+      :items="[
+        { label: 'Delete', action: handleDelete }
+      ]"
+      @close="closeMenu"
+    />
 </template>
 
 <style>
@@ -51,5 +114,20 @@ function selectFolder(folderUuid: string) {
 .folder-item.selected {
   background-color: #d1f5d3;
   font-weight: bold;
+}
+
+.add-folder-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 28px;
+  color: black;
+  transition: color 0.2s;
+  margin: 0 auto;
+  display: block;
+}
+
+.add-folder-btn:hover {
+  color: gray;
 }
 </style>
