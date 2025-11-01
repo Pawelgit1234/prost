@@ -19,7 +19,7 @@ from src.folders.models import FolderModel
 from src.folders.schemas import CreateFolderSchema, FolderSchema
 from src.folders.services import create_folder_in_db, delete_folder_in_db, \
     get_folders_list, add_chat_to_folder, delete_chat_from_folder, \
-    pin_chat_in_folder, get_folder_chat_assoc_or_404
+    pin_chat_in_folder, get_folder_chat_assoc_or_404, rename_folder_in_db
 from src.folders.utils import folder_model_to_schema
     
 logger = logging.getLogger(__name__)
@@ -104,6 +104,23 @@ async def delete_folder(
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     return {'success': True}
 
+@router.patch("/{folder_uuid}/rename")
+async def rename_folder(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
+    folder_uuid: UUID,
+    folder_info: CreateFolderSchema # name
+):
+    folder = await get_object_or_404(
+        db, FolderModel, FolderModel.uuid == folder_uuid,
+        detail='Folder not found'
+    )
+
+    await rename_folder_in_db(db, current_user, folder, folder_info.name)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
+    return {'success': True}
+
 # only for custom
 @router.put('/add_chat')
 async def add_chat(
@@ -156,7 +173,7 @@ async def pin_chat(
     logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
     return {'is_pinned': is_pinned}
 
+
+
 # @router.post('move')
 # async def move_folder()
-
-# rename

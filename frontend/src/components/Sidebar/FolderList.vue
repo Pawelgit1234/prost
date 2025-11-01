@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, ref } from 'vue';
-import { useFolderStore, type FolderI } from '../../store/folders';
+import { protectedTypes, useFolderStore, type FolderI } from '../../store/folders';
 import ModalTextInput from '../../common/ModalTextInput.vue';
 import ContextMenu from '../../common/ContextMenu.vue';
 
@@ -19,13 +19,25 @@ function selectFolder(folderUuid: string) {
     emit('update:selectedFolder', folderUuid);
 }
 
-const isModalOpen = ref(false)
-
-async function handleSubmit(name: string) {
+// ---- CREATE FOLDER ----
+const isCreateModalOpen = ref(false)
+async function handleCreateSubmit(name: string) {
   await folderStore.createFolder(name)
-  isModalOpen.value = false
+  isCreateModalOpen.value = false
 }
 
+// ---- RENAME FOLDER ----
+const isRenameModalOpen = ref(false)
+const folderToRename = ref<FolderI | null>(null)
+
+async function handleRenameSubmit(newName: string) {
+  if (folderToRename.value) {
+    await folderStore.renameFolder(folderToRename.value.uuid, newName)
+    isRenameModalOpen.value = false
+  }
+}
+
+// ---- CONTEXT MENU ----
 const isMenuVisible = ref(false)
 const menuX = ref(0)
 const menuY = ref(0)
@@ -33,8 +45,8 @@ const selectedFolder = ref<FolderI | null>(null)
 
 function openMenu(e: MouseEvent, folder: FolderI) {
   e.stopPropagation()
+  e.preventDefault()
 
-  const protectedTypes = ['all', 'chats', 'groups', 'new']
   if (protectedTypes.includes(folder.folder_type)) return
 
   selectedFolder.value = folder
@@ -47,49 +59,71 @@ function closeMenu() {
   isMenuVisible.value = false
 }
 
-// context menu actions
 async function handleDelete() {
   if (selectedFolder.value) await folderStore.deleteFolder(selectedFolder.value.uuid)
+  closeMenu()
 }
 
+function handleRename() {
+  if (!selectedFolder.value) return
+  folderToRename.value = selectedFolder.value
+  isRenameModalOpen.value = true
+  closeMenu()
+}
+
+function handleAddChats() {
+}
 </script>
 
 <template>
-    <div class="folder-list">
-        <div
-            v-for="folder in folders"
-            :key="folder.uuid"
-            :class="['folder-item', {selected: folder.uuid === selectFolderUuid}]"
-            @click.left.prevent="selectFolder(folder.uuid)"
-            @click.right.prevent="openMenu($event, folder)"
-        >
-            {{ folder.name || folder.folder_type }}
-        </div>
+  <div class="folder-list">
+    <div
+      v-for="folder in folders"
+      :key="folder.uuid"
+      :class="['folder-item', {selected: folder.uuid === selectFolderUuid}]"
+      @click.left.prevent="selectFolder(folder.uuid)"
+      @click.right.prevent="openMenu($event, folder)"
+    >
+      {{ folder.name || folder.folder_type }}
     </div>
+  </div>
 
-    <button @click="isModalOpen = true" class="add-folder-btn">
-      <i class="bi bi-plus-circle"></i>
-    </button>
+  <button @click="isCreateModalOpen = true" class="add-folder-btn">
+    <i class="bi bi-plus-circle"></i>
+  </button>
 
-    <ModalTextInput
-      v-if="isModalOpen"
-      :visible="isModalOpen"
-      title="Create new folder"
-      placeholder="Enter folder name"
-      @submit="handleSubmit"
-      @close="isModalOpen = false"
-    />
+  <!-- Creating Modal -->
+  <ModalTextInput
+    v-if="isCreateModalOpen"
+    :visible="isCreateModalOpen"
+    title="Create new folder"
+    placeholder="Enter folder name"
+    @submit="handleCreateSubmit"
+    @close="isCreateModalOpen = false"
+  />
 
-    <!-- Context Menu -->
-    <ContextMenu
-      :visible="isMenuVisible"
-      :x="menuX"
-      :y="menuY"
-      :items="[
-        { label: 'Delete', action: handleDelete }
-      ]"
-      @close="closeMenu"
-    />
+  <!-- Renaming Modal -->
+  <ModalTextInput
+    v-if="isRenameModalOpen"
+    :visible="isRenameModalOpen"
+    title="Rename folder"
+    :placeholder="folderToRename?.name || 'Enter new name'"
+    @submit="handleRenameSubmit"
+    @close="isRenameModalOpen = false"
+  />
+
+  <!-- Context Menu -->
+  <ContextMenu
+    :visible="isMenuVisible"
+    :x="menuX"
+    :y="menuY"
+    :items="[
+      { label: 'Rename', action: handleRename },
+      { label: 'Delete', action: handleDelete },
+      { label: 'Add Chats', action: handleAddChats },
+    ]"
+    @close="closeMenu"
+  />
 </template>
 
 <style>

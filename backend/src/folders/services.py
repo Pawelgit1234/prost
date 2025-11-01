@@ -138,6 +138,27 @@ async def delete_folder_in_db(
     await reorder_folders_after_deletion(db, user)
     logger.info(f'Folder {folder.name} deleted by {user.username}')
 
+async def rename_folder_in_db(
+    db: AsyncSession,
+    user: UserModel,
+    folder: FolderModel,
+    new_name: str
+) -> None:
+    if folder.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Not your folder'
+        )
+    
+    if folder.folder_type != FolderType.CUSTOM:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Only custom folders allowed'
+        )
+    
+    folder.name = new_name
+    await db.commit()
+
 async def add_chat_to_folder(
     db: AsyncSession,
     user: UserModel,

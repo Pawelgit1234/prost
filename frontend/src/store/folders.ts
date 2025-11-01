@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import axiosInstance from '../api/axios'
 
+export const protectedTypes = ['all', 'chats', 'groups', 'new']
+
 export interface FolderI {
   uuid: string
   folder_type: string
@@ -55,6 +57,25 @@ export const useFolderStore = defineStore('folders', {
         }
       } catch (error) {
         console.error("Error deleting folder: ", error)
+      }
+    },
+    async renameFolder(uuid: string, newName: string) {
+      try {
+        const payload = { name: newName };
+        const response = await axiosInstance.patch(`/folders/${uuid}/rename`, payload, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (response.data.success) {
+          const folder = this.folders.find(f => f.uuid === uuid)
+          if (folder) {
+            folder.name = newName;
+          }
+        } else {
+          console.error("Folder was not renamed")
+        }
+      } catch (error) {
+        console.error("Error renaming folder: ", error)
       }
     }
   },

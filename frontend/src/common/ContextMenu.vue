@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps<{
-  items: { label: string; action: () => void }[]
+  items: { label: string; action: () => void; disabled?: boolean }[]
   x: number
   y: number
   visible: boolean
@@ -20,13 +20,8 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
-onMounted(() => {
-  document.addEventListener('mousedown', handleClickOutside)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', handleClickOutside)
-})
+onMounted(() => document.addEventListener('mousedown', handleClickOutside))
+onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutside))
 </script>
 
 <template>
@@ -40,7 +35,8 @@ onBeforeUnmount(() => {
       v-for="(item, index) in items"
       :key="index"
       class="context-item"
-      @click="item.action(); emit('close')"
+      :class="{ disabled: item.disabled }"
+      @click="!item.disabled && item.action(); emit('close')"
     >
       {{ item.label }}
     </div>
@@ -67,5 +63,11 @@ onBeforeUnmount(() => {
 
 .context-item:hover {
   background-color: #f0f0f0;
+}
+
+.context-item.disabled {
+  color: #aaa;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>
