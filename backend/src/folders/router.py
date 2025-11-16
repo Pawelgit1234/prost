@@ -16,10 +16,11 @@ from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.folders.models import FolderModel
-from src.folders.schemas import CreateFolderSchema, FolderSchema
+from src.folders.schemas import CreateFolderSchema, FolderSchema, ReplaceChatsSchema
 from src.folders.services import create_folder_in_db, delete_folder_in_db, \
     get_folders_list, add_chat_to_folder, delete_chat_from_folder, \
-    pin_chat_in_folder, get_folder_chat_assoc_or_404, rename_folder_in_db
+    pin_chat_in_folder, get_folder_chat_assoc_or_404, rename_folder_in_db, \
+    replace_chats_in_db
 from src.folders.utils import folder_model_to_schema
     
 logger = logging.getLogger(__name__)
@@ -104,6 +105,7 @@ async def delete_folder(
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     return {'success': True}
 
+# only for custom
 @router.patch("/{folder_uuid}/rename")
 async def rename_folder(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -119,6 +121,25 @@ async def rename_folder(
 
     await rename_folder_in_db(db, current_user, folder, folder_info.name)
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
+    return {'success': True}
+
+# only for custom
+@router.put("/{folder_uuid}/chats")
+async def replace_chats(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
+    folder_uuid: UUID,
+    chat_uuids: ReplaceChatsSchema
+):
+    folder = await get_object_or_404(
+        db, FolderModel, FolderModel.uuid == folder_uuid,
+        detail='Folder not found'
+    )
+    
+    await replace_chats_in_db(db, current_user, folder, chat_uuids.uuids)
+    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
+    logger.info(f'Chats of the folder {folder_uuid} were replaced')
     return {'success': True}
 
 # only for custom

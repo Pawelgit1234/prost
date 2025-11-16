@@ -77,6 +77,26 @@ export const useFolderStore = defineStore('folders', {
       } catch (error) {
         console.error("Error renaming folder: ", error)
       }
+    },
+    async replaceChats(folderUuid: string, chatUuids: string[]) {
+      try {
+        const payload = { uuids: chatUuids };
+        const response = await axiosInstance.put(`/folders/${folderUuid}/chats`, payload, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (response.data.success) {
+          const folder = this.folders.find(f => f.uuid === folderUuid)
+          if (folder) {
+            folder.chat_uuids = chatUuids
+            folder.pinned_chats = folder.pinned_chats.filter(uuid => chatUuids.includes(uuid)) 
+          }
+        } else {
+          console.error("Chats in the folder were not replaced")
+        }
+      } catch (error) {
+        console.error("Error replacing chats in the folder: ", error)
+      }
     }
   },
   persist: true

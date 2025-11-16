@@ -4,7 +4,7 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, desc, and_
+from sqlalchemy import select, desc, and_, delete, insert
 from sqlalchemy.orm import selectinload
 
 from src.utils import save_to_db
@@ -187,6 +187,60 @@ async def add_chat_to_folder(
             status_code=status.HTTP_409_CONFLICT,
             detail="This chat is already in the folder"
         )
+
+async def replace_chats_in_db(
+    db: AsyncSession,
+    user: UserModel,
+    folder: FolderModel,
+    chat_uuids: list[UUID]
+) -> None:
+    if folder.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Not your folder'
+        )
+
+    if folder.folder_type != FolderType.CUSTOM:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Only custom folders allowed'
+        )
+        
+    # get current chat ids
+    current_chat_ids = set(
+        await db.scalars(
+            select(FolderChatAssociationModel.chat_id)
+            .where(FolderChatAssociationModel.folder_id == folder.id)
+        )
+    )
+
+    # get ids from chat uuids
+    result = await db.execute(
+        select(ChatModel.id)
+        .where(ChatModel.uuid.in_(chat_uuids))
+    )
+    new_chat_ids = {i[0] for i in result.all()}
+
+    # calculates diff
+    to_add = new_chat_ids - current_chat_ids
+    to_remove = current_chat_ids - new_chat_ids
+
+    if to_remove:
+        await db.execute(
+            delete(FolderChatAssociationModel)
+            .where(
+                FolderChatAssociationModel.folder_id == folder.id,
+                FolderChatAssociationModel.chat_id.in_(to_remove)
+            )
+        )
+
+    if to_add:
+        await db.execute(
+            insert(FolderChatAssociationModel),
+            [{"folder_id": folder.id, "chat_id": cid} for cid in to_add]
+        )
+
+    await db.commit()
 
 async def delete_chat_from_folder(
     db: AsyncSession,

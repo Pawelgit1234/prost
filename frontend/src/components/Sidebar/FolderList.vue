@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, ref } from 'vue';
 import { protectedTypes, useFolderStore, type FolderI } from '../../store/folders';
-import ModalTextInput from '../../common/ModalTextInput.vue';
-import ContextMenu from '../../common/ContextMenu.vue';
+import { useChatStore, type ChatI } from '../../store/chats';
+import ChatSelectorModal from '../common/ChatSelectorModal.vue';
 
 const folderStore = useFolderStore()
+const chatStore = useChatStore()
 
 const props = defineProps<{
     folders: FolderI[];
@@ -35,6 +36,16 @@ async function handleRenameSubmit(newName: string) {
     await folderStore.renameFolder(folderToRename.value.uuid, newName)
     isRenameModalOpen.value = false
   }
+}
+
+// ---- REPLACE CHATS ----
+const isReplaceModalOpen = ref(false)
+const folderToReplaceChats = ref<FolderI | null>(null)
+
+async function handleReplaceSubmit(chats: ChatI[]) {
+  if (!folderToReplaceChats.value) return
+  await folderStore.replaceChats(folderToReplaceChats.value.uuid, chats.map(c => c.uuid))
+  isReplaceModalOpen.value = false
 }
 
 // ---- CONTEXT MENU ----
@@ -71,7 +82,11 @@ function handleRename() {
   closeMenu()
 }
 
-function handleAddChats() {
+function handleReplaceChats() {
+  if (!selectedFolder.value) return
+  folderToReplaceChats.value = selectedFolder.value
+  isReplaceModalOpen.value = true
+  closeMenu()
 }
 </script>
 
@@ -112,6 +127,17 @@ function handleAddChats() {
     @close="isRenameModalOpen = false"
   />
 
+  <!-- Replacing Modal -->
+  <ChatSelectorModal
+    :visible="isReplaceModalOpen"
+    title="Choose Chats"
+    placeholder="Search for chats"
+    :chats="chatStore.chats"
+    :filterFn="(chat: ChatI) => folderToReplaceChats?.chat_uuids.includes(chat.uuid) ?? false"
+    @submit="handleReplaceSubmit"
+    @close="isReplaceModalOpen = false"
+  />
+
   <!-- Context Menu -->
   <ContextMenu
     :visible="isMenuVisible"
@@ -120,7 +146,7 @@ function handleAddChats() {
     :items="[
       { label: 'Rename', action: handleRename },
       { label: 'Delete', action: handleDelete },
-      { label: 'Add Chats', action: handleAddChats },
+      { label: 'Replace Chats', action: handleReplaceChats },
     ]"
     @close="closeMenu"
   />

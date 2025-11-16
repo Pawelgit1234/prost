@@ -28,8 +28,10 @@ export const useChatStore = defineStore('chats', {
       const folderStore = useFolderStore()
       const folder = folderStore.folders.find(f => f.uuid === folderStore.selectedFolderUuid)
       if (!folder) return []
-      return state.chats.filter(c => folder.chat_uuids.includes(c.uuid))
+      const chatUuids = folder.chat_uuids ?? []
+      return state.chats.filter(c => chatUuids.includes(c.uuid))
     }
+
   },
   actions: {
     selectChat(uuid: string) {

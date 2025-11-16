@@ -7,6 +7,9 @@ from src.folders.enums import FolderType
 class CreateFolderSchema(BaseModel):
     name: str = Field(max_length=16)
 
+class ReplaceChatsSchema(BaseModel):
+    uuids: list[UUID] # chat uuids
+
 class FolderSchema(BaseModel):
     uuid: UUID
     name: str | None = Field(default=None)
