@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import draggable from 'vuedraggable';
-import { defineProps, defineEmits, ref, watch } from 'vue';
+import { defineProps, defineEmits, ref } from 'vue';
 import { protectedTypes, useFolderStore, type FolderI } from '../../store/folders';
 import { useChatStore, type ChatI } from '../../store/chats';
 import ChatSelectorModal from '../common/ChatSelectorModal.vue';
@@ -91,24 +91,18 @@ function handleReplaceChats() {
 }
 
 // Move folders
-const internalFolders = ref([...props.folders])
-
 async function onDragEnd() {
-  internalFolders.value.forEach((folder, index) => {
+  folderStore.folders.forEach((folder, index) => {
     folder.position = index
   })
 
-  await folderStore.updateOrder(internalFolders.value)
+  await folderStore.updateOrder()
 }
-
-watch(() => props.folders, (val) => {
-  internalFolders.value = [...val]
-})
 </script>
 
 <template>
   <draggable
-    v-model="internalFolders"
+    v-model="folderStore.folders"
     item-key="uuid"
     animation="150"
     handle=".drag-handle"

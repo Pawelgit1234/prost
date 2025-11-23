@@ -37,31 +37,3 @@ function handleSubmit() {
     </div>
   </div>
 </template>
-
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-start;
-  gap: 10px;
-  margin-top: 15px;
-}
-</style>

@@ -99,9 +99,9 @@ export const useFolderStore = defineStore('folders', {
         console.error("Error replacing chats in the folder: ", error)
       }
     },
-    async updateOrder(folders: FolderI[]) {
+    async updateOrder() {
       try {
-        const payload = { folders: folders.map(f => ({
+        const payload = { folders: this.folders.map(f => ({
           uuid: f.uuid,
           position: f.position
         }))}
@@ -109,12 +109,8 @@ export const useFolderStore = defineStore('folders', {
           headers: { 'Accept': 'application/json' },
         });
 
-        if (response.data.success) {
-          // updates localy
-          this.folders = [...folders]
-        } else {
+        if (!response.data.success)
           console.error("Folder order were not updated")
-        }
       } catch (error) {
         console.error("Error updating folder order: ", error)
       }

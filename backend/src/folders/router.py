@@ -139,7 +139,7 @@ async def replace_chats(
     )
     
     await replace_chats_in_db(db, current_user, folder, chat_uuids.uuids)
-    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     logger.info(f'Chats of the folder {folder_uuid} were replaced')
     return {'success': True}
 
@@ -160,7 +160,7 @@ async def add_chat(
         options=[selectinload(ChatModel.user_associations)]
     )
     await add_chat_to_folder(db, current_user, folder, chat)
-    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     logger.info(f'Chat added to folder {folder.name} by {current_user.username}')
     return {'success': True}
 
@@ -176,7 +176,7 @@ async def delete_chat(
     """ Removes chat from folder """
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
     await delete_chat_from_folder(db, current_user, assoc)
-    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     logger.info(f'Chat deleted from folder {assoc.folder.name} by {current_user.username}')
     return {'success': True}
 
@@ -191,7 +191,7 @@ async def pin_chat(
 ):
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
     is_pinned = await pin_chat_in_folder(db, current_user, assoc)
-    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
     return {'is_pinned': is_pinned}
 
