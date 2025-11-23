@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { defineProps, defineEmits, ref } from 'vue';
+import draggable from 'vuedraggable';
+import { defineProps, defineEmits, ref, watch } from 'vue';
 import { protectedTypes, useFolderStore, type FolderI } from '../../store/folders';
 import { useChatStore, type ChatI } from '../../store/chats';
 import ChatSelectorModal from '../common/ChatSelectorModal.vue';
@@ -88,20 +89,43 @@ function handleReplaceChats() {
   isReplaceModalOpen.value = true
   closeMenu()
 }
+
+// Move folders
+const internalFolders = ref([...props.folders])
+
+async function onDragEnd() {
+  internalFolders.value.forEach((folder, index) => {
+    folder.position = index
+  })
+
+  await folderStore.updateOrder(internalFolders.value)
+}
+
+watch(() => props.folders, (val) => {
+  internalFolders.value = [...val]
+})
 </script>
 
 <template>
-  <div class="folder-list">
-    <div
-      v-for="folder in folders"
-      :key="folder.uuid"
-      :class="['folder-item', {selected: folder.uuid === selectFolderUuid}]"
-      @click.left.prevent="selectFolder(folder.uuid)"
-      @click.right.prevent="openMenu($event, folder)"
-    >
-      {{ folder.name || folder.folder_type }}
-    </div>
-  </div>
+  <draggable
+    v-model="internalFolders"
+    item-key="uuid"
+    animation="150"
+    handle=".drag-handle"
+    ghost-class="dragging"
+    @end="onDragEnd"
+  >
+    <template #item="{ element }">
+      <div
+        :class="['folder-item', { selected: element.uuid === selectFolderUuid }]"
+        @click.left.prevent="selectFolder(element.uuid)"
+        @click.right.prevent="openMenu($event, element)"
+      >
+        <span class="drag-handle">⋮⋮</span>
+        {{ element.name || element.folder_type }}
+      </div>
+    </template>
+  </draggable>
 
   <button @click="isCreateModalOpen = true" class="add-folder-btn">
     <i class="bi bi-plus-circle"></i>
@@ -189,5 +213,19 @@ function handleReplaceChats() {
 
 .add-folder-btn:hover {
   color: gray;
+}
+
+.drag-handle {
+  cursor: grab;
+  margin-right: 8px;
+  color: #888;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.dragging {
+  opacity: 0.4;
 }
 </style>

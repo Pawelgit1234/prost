@@ -52,6 +52,7 @@ export const useFolderStore = defineStore('folders', {
         const response = await axiosInstance.delete('/folders/' + uuid + '/')
         if (response.data.success) {
           this.folders = this.folders.filter((folder) => folder.uuid !== uuid)
+          this.folders.forEach((folder, index) => {folder.position = index})
         } else {
           console.error("Folder was not deleted")
         }
@@ -96,6 +97,26 @@ export const useFolderStore = defineStore('folders', {
         }
       } catch (error) {
         console.error("Error replacing chats in the folder: ", error)
+      }
+    },
+    async updateOrder(folders: FolderI[]) {
+      try {
+        const payload = { folders: folders.map(f => ({
+          uuid: f.uuid,
+          position: f.position
+        }))}
+        const response = await axiosInstance.put(`/folders/order`, payload, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (response.data.success) {
+          // updates localy
+          this.folders = [...folders]
+        } else {
+          console.error("Folder order were not updated")
+        }
+      } catch (error) {
+        console.error("Error updating folder order: ", error)
       }
     }
   },

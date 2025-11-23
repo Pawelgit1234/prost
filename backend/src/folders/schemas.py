@@ -10,6 +10,13 @@ class CreateFolderSchema(BaseModel):
 class ReplaceChatsSchema(BaseModel):
     uuids: list[UUID] # chat uuids
 
+class FolderOrderSchema(BaseModel):
+    uuid: UUID
+    position: int = Field(ge=0)
+
+class FolderOrderListSchema(BaseModel):
+    folders: list[FolderOrderSchema]
+
 class FolderSchema(BaseModel):
     uuid: UUID
     name: str | None = Field(default=None)

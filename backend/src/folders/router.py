@@ -16,11 +16,12 @@ from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.folders.models import FolderModel
-from src.folders.schemas import CreateFolderSchema, FolderSchema, ReplaceChatsSchema
+from src.folders.schemas import CreateFolderSchema, FolderSchema, ReplaceChatsSchema, \
+    FolderOrderListSchema
 from src.folders.services import create_folder_in_db, delete_folder_in_db, \
     get_folders_list, add_chat_to_folder, delete_chat_from_folder, \
     pin_chat_in_folder, get_folder_chat_assoc_or_404, rename_folder_in_db, \
-    replace_chats_in_db
+    replace_chats_in_db, order_folders_in_db
 from src.folders.utils import folder_model_to_schema
     
 logger = logging.getLogger(__name__)
@@ -194,7 +195,14 @@ async def pin_chat(
     logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
     return {'is_pinned': is_pinned}
 
-
-
-# @router.post('move')
-# async def move_folder()
+@router.put('/order')
+async def order_folders(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
+    folders: FolderOrderListSchema
+):
+    await order_folders_in_db(db, current_user, folders.folders)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
+    logger.info(f'Folder order from user {current_user.uuid} was changed')
+    return {'success': True}
