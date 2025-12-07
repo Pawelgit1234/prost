@@ -57,7 +57,7 @@ export const useAuthStore = defineStore('auth', {
 
         const response = await axiosInstance.post("/auth/token", formData, {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          withCredentials: true,
+          withCredentials: true, // true, because server sets the refresh token
         });
         let data = response.data; // { user, access_token, token_type } 
 
@@ -90,7 +90,7 @@ export const useAuthStore = defineStore('auth', {
 
         const response = await axiosInstance.post("/auth/register", payload, {
           headers: { "Accept": "application/json" },
-          withCredentials: true,
+          withCredentials: true, // true, because server sets the refresh token
         });
         let data = response.data; // { user, access_token, token_type } 
 

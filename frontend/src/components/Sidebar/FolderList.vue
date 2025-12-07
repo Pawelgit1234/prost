@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import draggable from 'vuedraggable';
-import { defineProps, defineEmits, ref } from 'vue';
+import { ref } from 'vue';
 import { protectedTypes, useFolderStore, type FolderI } from '../../store/folders';
 import { useChatStore, type ChatI } from '../../store/chats';
 import ChatSelectorModal from '../common/ChatSelectorModal.vue';

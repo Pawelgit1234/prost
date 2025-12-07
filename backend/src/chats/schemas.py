@@ -30,4 +30,7 @@ class ChatSchema(BaseModel):
     updated_at: datetime
     last_message: MessageSchema | None = Field(default=None) # optional
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+class SetChatFoldersSchema(BaseModel):
+    folder_uuids: list[UUID]

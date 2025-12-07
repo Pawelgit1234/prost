@@ -3,20 +3,17 @@ import logging
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, desc, and_, delete, insert
 from sqlalchemy.orm import selectinload
 
 from src.utils import save_to_db
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
-from src.chats.utils import is_user_in_chat
 from src.folders.models import FolderModel, FolderChatAssociationModel
 from src.folders.schemas import CreateFolderSchema, FolderOrderSchema
 from src.folders.enums import FolderType
 
 logger = logging.getLogger(__name__)
-
 
 # already protects the user with by checking the user id
 async def get_folder_chat_assoc_or_404(
@@ -160,32 +157,6 @@ async def rename_folder_in_db(
     folder.name = new_name
     await db.commit()
 
-
-async def add_chat_to_folder(
-    db: AsyncSession, user: UserModel, folder: FolderModel, chat: ChatModel
-) -> None:
-    if not is_user_in_chat(user, chat) or folder.user_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chat or folder not accessible",
-        )
-
-    if folder.folder_type != FolderType.CUSTOM:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only custom folders allowed"
-        )
-
-    try:
-        assoc = FolderChatAssociationModel(folder=folder, chat=chat)
-        db.add(assoc)
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This chat is already in the folder",
-        )
-
 async def replace_chats_in_db(
     db: AsyncSession, user: UserModel, folder: FolderModel, chat_uuids: list[UUID]
 ) -> None:
@@ -245,17 +216,6 @@ async def delete_chat_from_folder(
 
     await db.delete(assoc)
     await db.commit()
-
-
-# True - was pinned up | False - was unpinned
-async def pin_chat_in_folder(
-    db: AsyncSession,
-    assoc: FolderChatAssociationModel
-) -> bool:
-    assoc.is_pinned = not assoc.is_pinned
-    await db.commit()
-
-    return assoc.is_pinned
 
 async def order_folders_in_db(
     db: AsyncSession,

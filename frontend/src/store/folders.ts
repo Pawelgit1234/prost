@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axiosInstance from '../api/axios'
+import type { ChatI } from './chats'
 
 export const protectedTypes = ['all', 'chats', 'groups', 'new']
 
@@ -113,6 +114,34 @@ export const useFolderStore = defineStore('folders', {
           console.error("Folder order were not updated")
       } catch (error) {
         console.error("Error updating folder order: ", error)
+      }
+    },
+    async addChatToFolders(chat: ChatI, folders: FolderI[]) {
+      try {
+        const payload = { folder_uuids: folders.map(f => f.uuid) };
+        const response = await axiosInstance.put(`/chats/${chat.uuid}/folders`, payload, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (!response.data.success) {
+          console.error("Folders were not updated")
+          return
+        }
+
+        // delete from all folder
+        for (const folder of this.folders) {
+          const idx = folder.chat_uuids.indexOf(chat.uuid)
+          if (idx !== -1) folder.chat_uuids.splice(idx, 1)
+        }
+
+        // add in folders user choosed
+        for (const folder of folders) {
+          if (!folder.chat_uuids.includes(chat.uuid)) {
+            folder.chat_uuids.push(chat.uuid)
+          }
+        }
+      } catch (error) {
+        console.error("Error updating chat folders: ", error)
       }
     }
   },

@@ -3,7 +3,8 @@ import logging
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload, aliased
 from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
@@ -17,6 +18,7 @@ from src.chats.enums import ChatType
 from src.chats.utils import group_folders_by_type, ensure_user_in_chat_or_403,\
     update_group_members_in_elastic, ensure_no_normal_chat_or_403, chat_and_message_model_to_schema,\
     other_user_to_chat_schema
+from src.chats.utils import is_user_in_chat
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 
@@ -219,3 +221,101 @@ async def user_add_user_to_group_in_db(
     logger.info(f"'{other_user.username}' added to group '{group.name}' by {user.username}")
 
     return group
+
+async def set_chat_folder_in_db(
+    db: AsyncSession,
+    user: UserModel,
+    chat: ChatModel,
+    folder_uuids: list[UUID]
+) -> None:
+    if not is_user_in_chat(user, chat):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not your chat"
+        )
+
+    # get current folder ids
+    current_folder_ids = set(
+        await db.scalars(
+            select(FolderChatAssociationModel.folder_id).where(
+                FolderChatAssociationModel.chat_id == chat.id
+            )
+        )
+    )
+
+    # take new folders
+    result = await db.execute(
+        select(FolderModel).where(
+            FolderModel.uuid.in_(folder_uuids),
+            FolderModel.user_id == user.id
+        )
+    )
+    new_folders = result.scalars().all()
+
+    # check if folder are custom
+    for folder in new_folders:
+        if folder.folder_type != FolderType.CUSTOM:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Folder {folder.uuid} is not custom"
+            )
+
+    new_folder_ids = {f.id for f in new_folders}
+
+    # Diff
+    to_add = new_folder_ids - current_folder_ids
+    to_remove = current_folder_ids - new_folder_ids
+
+    # Remove
+    if to_remove:
+        await db.execute(
+            delete(FolderChatAssociationModel).where(
+                FolderChatAssociationModel.chat_id == chat.id,
+                FolderChatAssociationModel.folder_id.in_(to_remove),
+            )
+        )
+
+    # Add
+    if to_add:
+        await db.execute(
+            insert(FolderChatAssociationModel),
+            [{"folder_id": fid, "chat_id": chat.id} for fid in to_add],
+        )
+
+    await db.commit()
+
+# True - was pinned up | False - was unpinned
+async def pin_chat_in_folder(
+    db: AsyncSession,
+    assoc: FolderChatAssociationModel
+) -> bool:
+    assoc.is_pinned = not assoc.is_pinned
+    await db.commit()
+
+    return assoc.is_pinned
+
+async def add_chat_to_folder(
+    db: AsyncSession, user: UserModel, folder: FolderModel, chat: ChatModel
+) -> None:
+    if not is_user_in_chat(user, chat) or folder.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chat or folder not accessible",
+        )
+
+    if folder.folder_type != FolderType.CUSTOM:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only custom folders allowed"
+        )
+
+    try:
+        assoc = FolderChatAssociationModel(folder=folder, chat=chat)
+        db.add(assoc)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This chat is already in the folder",
+        )
+

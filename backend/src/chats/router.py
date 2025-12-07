@@ -9,14 +9,17 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from elasticsearch import AsyncElasticsearch
 
+from src.folders.services import get_folder_chat_assoc_or_404
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
-    quit_group_in_db, user_add_user_to_group_in_db, get_chat_or_404, get_chat_schemas
+    quit_group_in_db, user_add_user_to_group_in_db, get_chat_or_404, get_chat_schemas, \
+    pin_chat_in_folder, set_chat_folder_in_db
+from src.chats.models import ChatModel
 from src.chats.utils import get_group_users_uuids
-from src.chats.schemas import CreateChatSchema, ChatSchema
+from src.chats.schemas import CreateChatSchema, ChatSchema, SetChatFoldersSchema
 from src.dependencies import get_active_current_user
-from src.utils import get_object_or_404, invalidate_cache, serialize_model_list,\
-    wrap_list_response
-from src.settings import ELASTIC_CHATS_INDEX_NAME, REDIS_CHATS_KEY, REDIS_CACHE_EXPIRE_SECONDS
+from src.utils import get_object_or_404, invalidate_cache, wrap_list_response
+from src.settings import ELASTIC_CHATS_INDEX_NAME, REDIS_CHATS_KEY, REDIS_CACHE_EXPIRE_SECONDS, \
+    REDIS_FOLDERS_KEY
 from src.auth.models import UserModel
 from src.database import get_db, get_redis, get_es
 
@@ -124,3 +127,70 @@ async def add_user_to_group(
     group = await user_add_user_to_group_in_db(db, es, group, other_user, current_user)
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
     return {'success': True}
+
+# # only for custom
+# @router.put('/add_chat')
+# async def add_chat(
+#     db: Annotated[AsyncSession, Depends(get_db)],
+#     r: Annotated[Redis, Depends(get_redis)],
+#     current_user: Annotated[UserModel, Depends(get_active_current_user)],
+#     chat_uuid: UUID,
+#     folder_uuid: UUID
+# ):
+#     folder = await get_object_or_404(
+#         db, FolderModel, FolderModel.uuid == folder_uuid, detail='Folder not found'
+#     )
+#     chat = await get_object_or_404(
+#         db, ChatModel, ChatModel.uuid == chat_uuid, detail='Chat not found',
+#         options=[selectinload(ChatModel.user_associations)]
+#     )
+#     await add_chat_to_folder(db, current_user, folder, chat)
+#     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
+#     logger.info(f'Chat added to folder {folder.name} by {current_user.username}')
+#     return {'success': True}
+# 
+# # only for custom
+# @router.put('/delete_chat_from_folder')
+# async def delete_chat_from_folder(
+#     db: Annotated[AsyncSession, Depends(get_db)],
+#     r: Annotated[Redis, Depends(get_redis)],
+#     current_user: Annotated[UserModel, Depends(get_active_current_user)],
+#     chat_uuid: UUID,
+#     folder_uuid: UUID
+# ):
+#     """ Removes chat from folder """
+#     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
+#     await delete_chat_from_folder(db, current_user, assoc)
+#     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
+#     logger.info(f'Chat deleted from folder {assoc.folder.name} by {current_user.username}')
+#     return {'success': True}
+
+# only for custom folders
+@router.put('/{chat_uuid}/folders')
+async def set_chat_folders(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
+    chat_uuid: UUID,
+    folder_uuids: SetChatFoldersSchema
+):
+    chat = await get_chat_or_404(db, chat_uuid)
+    await set_chat_folder_in_db(db, current_user, chat, folder_uuids.folder_uuids)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
+    logger.info(f'Folders of the chat {chat_uuid} were setted')
+    return {'success': True}
+
+# toggles the 'is_pinned' field
+@router.put('{chat_uuid}/pin')
+async def pin_chat(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
+    chat_uuid: UUID,
+    folder_uuid: UUID
+):
+    assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
+    is_pinned = await pin_chat_in_folder(db, current_user, assoc)
+    await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
+    logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
+    return {'is_pinned': is_pinned}

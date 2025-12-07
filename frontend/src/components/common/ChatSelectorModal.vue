@@ -17,7 +17,6 @@ const emit = defineEmits<{
 }>()
 
 const selected = ref(props.chats.filter(c => props.filterFn(c)))
-
 const unselected = computed(() => {
     return props.chats.filter(c => !selected.value.includes(c))
 })
@@ -42,7 +41,7 @@ watch(() => props.visible, (val) => {
                   v-for="c in selected"
                   :key="c.uuid"
                   @click="selected = selected.filter(x => x !== c)"
-                  class="chat-item"
+                  class="scrollbox-item"
                 >
                     {{ c.name }}
                 </div>
@@ -61,7 +60,7 @@ watch(() => props.visible, (val) => {
 
             <h4>Available</h4>
             <div class="scroll-box">
-                <div v-for="c in filteredUnmatched" :key="c.uuid" @click="selected.push(c)" class="chat-item">
+                <div v-for="c in filteredUnmatched" :key="c.uuid" @click="selected.push(c)" class="scroll-box-item">
                     {{ c.name }}
                 </div>
             </div>
@@ -73,27 +72,3 @@ watch(() => props.visible, (val) => {
         </div>
     </div>
 </template>
-
-<style scoped>
-.scroll-box {
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 6px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fafafa;
-  margin-bottom: 12px;
-}
-
-.chat-item {
-  padding: 6px 8px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.chat-item:hover {
-  background: #e8e8e8;
-}
-</style>
