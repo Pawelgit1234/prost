@@ -143,6 +143,31 @@ export const useFolderStore = defineStore('folders', {
       } catch (error) {
         console.error("Error updating chat folders: ", error)
       }
+    },
+    async handlePin(folder_uuid: string, chat_uuid: string) {
+      try {
+        const response = await axiosInstance.put(`/chats/${chat_uuid}/folders/${folder_uuid}/pin`);
+        const folder = this.folders.find(f => f.uuid === folder_uuid)
+        if (!folder) return
+
+        const index = folder.pinned_chats.indexOf(chat_uuid)
+        if (index !== -1) {
+          folder.pinned_chats.splice(index, 1)
+        }
+        if (response.data.is_pinned) {
+          folder.pinned_chats.push(chat_uuid)
+        }
+      } catch (error) {
+        console.error("Error pinning chat: ", error)
+      }
+    },
+    isChatPinned(chat_uuid: string) {
+      if (!this.selectedFolder) return
+      const folder = this.selectedFolder
+
+      const chat = folder.chat_uuids.find(c => c === chat_uuid)
+      const pin = folder.pinned_chats.find(c => c === chat_uuid)
+      return chat && pin
     }
   },
   persist: true

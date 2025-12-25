@@ -2,7 +2,7 @@
 import type { ChatI } from '../../store/chats';
 import type FolderSelectorModal from '../common/FolderSelectorModal.vue';
 import { useFolderStore, type FolderI } from '../../store/folders';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
   chats: ChatI[];
@@ -56,13 +56,18 @@ async function handleAddChatToFolder() {
   isAddToFolderModalOpen.value = true
 }
 
-async function handleDeleteChatFromFolder() {
-
-}
-
 async function handlePinChat() {
-  
+  if (!selectedChat.value) return
+  if (!folderStore.selectedFolder) return
+  await folderStore.handlePin(folderStore.selectedFolder.uuid, selectedChat.value.uuid)
 }
+
+const pinned_chats = computed(() => 
+  props.chats.filter(chat => folderStore.isChatPinned(chat.uuid))
+)
+const unpinned_chats = computed(() => 
+  props.chats.filter(chat => !folderStore.isChatPinned(chat.uuid))
+)
 
 async function handleDeleteChat() {
 
@@ -78,9 +83,22 @@ async function handleAddUserToGroup() {
 </script>
 
 <template>
+  
   <div class="chat-list">
     <div
-      v-for="chat in chats"
+      v-for="chat in pinned_chats"
+      :key="chat.uuid"
+      :class="['chat-item', { selected: chat.uuid === selectedChatUuid }]"
+      @click.left.prevent="selectChat(chat.uuid)"
+      @click.right.prevent="openMenu($event, chat)"
+    >
+      <i class="bi bi-pin-angle-fill pin-icon"></i>
+      <div class="chat-name">{{ chat.name }}</div>
+      <div class="chat-last-message">{{ chat.last_message }}</div>
+    </div>
+
+    <div
+      v-for="chat in unpinned_chats"
       :key="chat.uuid"
       :class="['chat-item', { selected: chat.uuid === selectedChatUuid }]"
       @click.left.prevent="selectChat(chat.uuid)"
@@ -98,7 +116,7 @@ async function handleAddUserToGroup() {
     :y="menuY"
     :items="[
       { label: 'Add to Folder', action: handleAddChatToFolder },
-      { label: 'Pin', action: handlePinChat },
+      {label: 'Pin', action: handlePinChat },
       { label: 'Delete Chat', action: handleDeleteChat },
       { label: 'Add User to Group', action: handleAddUserToGroup },
       { label: 'Quit', action: handleQuitGroup },
@@ -129,6 +147,7 @@ async function handleAddUserToGroup() {
 }
 
 .chat-item {
+  position: relative;
   padding: 8px 12px;
   cursor: pointer;
   border-radius: 4px;
@@ -146,6 +165,14 @@ async function handleAddUserToGroup() {
   font-weight: bold;
 }
 
+.pin-icon {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 0.9rem;
+  color: #665;
+}
+
 .chat-name {
   font-weight: bold;
 }
@@ -154,4 +181,15 @@ async function handleAddUserToGroup() {
   font-size: 0.85rem;
   color: gray;
 }
+
+.chat-name,
+.chat-last-message {
+  padding-right: 20px;
+}
+
+.chat-item:hover .pin-icon {
+  transform: rotate(-20deg);
+  transition: transform 0.2s ease;
+}
+
 </style>

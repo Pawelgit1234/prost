@@ -181,7 +181,7 @@ async def set_chat_folders(
     return {'success': True}
 
 # toggles the 'is_pinned' field
-@router.put('{chat_uuid}/pin')
+@router.put('/{chat_uuid}/folders/{folder_uuid}/pin')
 async def pin_chat(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
@@ -190,7 +190,7 @@ async def pin_chat(
     folder_uuid: UUID
 ):
     assoc = await get_folder_chat_assoc_or_404(db, current_user, folder_uuid, chat_uuid)
-    is_pinned = await pin_chat_in_folder(db, current_user, assoc)
+    is_pinned = await pin_chat_in_folder(db, assoc)
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
     logger.info(f'Chat pinned in folder {assoc.folder.name} by {current_user.username}')
     return {'is_pinned': is_pinned}
