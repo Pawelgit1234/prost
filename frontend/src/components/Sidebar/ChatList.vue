@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { ChatI } from '../../store/chats';
+import { useChatStore, type ChatI } from '../../store/chats';
 import type FolderSelectorModal from '../common/FolderSelectorModal.vue';
 import { useFolderStore, type FolderI } from '../../store/folders';
 import { computed, ref } from 'vue';
+import { useMessageStore } from '../../store/messages';
 
 const props = defineProps<{
   chats: ChatI[];
@@ -18,6 +19,8 @@ function selectChat(chatUuid: string) {
 }
 
 const folderStore = useFolderStore()
+const chatStore = useChatStore()
+const messageStore = useMessageStore()
 
 // ---- ADD CHAT TO FOLDER ----
 const isAddToFolderModalOpen = ref(false)
@@ -70,7 +73,10 @@ const unpinned_chats = computed(() =>
 )
 
 async function handleDeleteChat() {
-
+  if (!selectedChat.value) return
+  folderStore.deleteChat(selectedChat.value.uuid)
+  await chatStore.deleteChat(selectedChat.value.uuid)
+  await messageStore.deleteChatMessages(selectedChat.value.uuid)
 }
 
 async function handleQuitGroup() {

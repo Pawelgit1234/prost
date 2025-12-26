@@ -31,7 +31,6 @@ export const useChatStore = defineStore('chats', {
       const chatUuids = folder.chat_uuids ?? []
       return state.chats.filter(c => chatUuids.includes(c.uuid))
     }
-
   },
   actions: {
     selectChat(uuid: string) {
@@ -51,6 +50,19 @@ export const useChatStore = defineStore('chats', {
         this.chats = data.items as ChatI[]
       } catch (error) {
         console.error("Error fetching chats:", error)
+      }
+    },
+    async deleteChat(chatUuid: string) {
+      try {
+        const response = await axiosInstance.delete(`/chats/${chatUuid}`)
+
+        if (response.data.success) {
+          this.chats = this.chats.filter((chat) => chat.uuid !== chatUuid)
+        } else {
+          console.error("Chat was not deleted")
+        }
+      } catch (error) {
+        console.error("Error deleting chat:", error)
       }
     }
   },

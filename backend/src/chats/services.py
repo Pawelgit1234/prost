@@ -154,6 +154,12 @@ async def quit_group_in_db(
     # folders = [assoc.folder for assoc in group.folder_associations]
     # await invalidate_chat_cache(r, *folders, user=current_user)
 
+    if group.chat_type != ChatType.GROUP:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You can only leave groups"
+        )
+
     # quit group
     for assoc in group.user_associations:
         if assoc.user_id == current_user.id:

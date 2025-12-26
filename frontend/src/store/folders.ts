@@ -144,32 +144,37 @@ export const useFolderStore = defineStore('folders', {
         console.error("Error updating chat folders: ", error)
       }
     },
-    async handlePin(folder_uuid: string, chat_uuid: string) {
+    async handlePin(folderUuid: string, chatUuid: string) {
       try {
-        const response = await axiosInstance.put(`/chats/${chat_uuid}/folders/${folder_uuid}/pin`);
-        const folder = this.folders.find(f => f.uuid === folder_uuid)
+        const response = await axiosInstance.put(`/chats/${chatUuid}/folders/${folderUuid}/pin`);
+        const folder = this.folders.find(f => f.uuid === folderUuid)
         if (!folder) return
 
-        const index = folder.pinned_chats.indexOf(chat_uuid)
+        const index = folder.pinned_chats.indexOf(chatUuid)
         if (index !== -1) {
           folder.pinned_chats.splice(index, 1)
         }
         if (response.data.is_pinned) {
-          folder.pinned_chats.push(chat_uuid)
+          folder.pinned_chats.push(chatUuid)
         }
       } catch (error) {
         console.error("Error pinning chat: ", error)
       }
     },
-    isChatPinned(chat_uuid: string) {
+    isChatPinned(chatUuid: string) {
       if (!this.selectedFolder) return
       const folder = this.selectedFolder
 
-      const chat = folder.chat_uuids.find(c => c === chat_uuid)
-      const pin = folder.pinned_chats.find(c => c === chat_uuid)
+      const chat = folder.chat_uuids.find(c => c === chatUuid)
+      const pin = folder.pinned_chats.find(c => c === chatUuid)
       return chat && pin
+    },
+    deleteChat(chatUuid: string) {
+      this.folders.forEach((folder) => {
+        folder.chat_uuids = folder.chat_uuids.filter((c) => c !== chatUuid)
+        folder.pinned_chats = folder.pinned_chats.filter((c) => c !== chatUuid)
+      })
     }
   },
   persist: true
 })
-

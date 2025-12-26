@@ -27,6 +27,9 @@ export const useMessageStore = defineStore('messages', {
     },
     getMessagesByChat(chatUuid: string): MessageI[] {
       return this.messages.filter(m => m.chatUuid === chatUuid)
+    },
+    async deleteChatMessages(chatUuid: string) {
+      // TODO: delete all chat message
     }
   },
   persist: true
