@@ -52,6 +52,19 @@ export const useChatStore = defineStore('chats', {
         console.error("Error fetching chats:", error)
       }
     },
+    async quitChat(groupUuid: string) {
+      try {
+        const response = await axiosInstance.delete(`/chats/${groupUuid}/quit`)
+
+        if (response.data.success) {
+          this.chats = this.chats.filter((chat) => chat.uuid !== groupUuid)
+        } else {
+          console.error("Group was not quitted")
+        }
+      } catch (error) {
+        console.error("Error quitting group: ", error)
+      }
+    },
     async deleteChat(chatUuid: string) {
       try {
         const response = await axiosInstance.delete(`/chats/${chatUuid}`)

@@ -146,7 +146,6 @@ async def delete_chat_in_db(
 
 async def quit_group_in_db(
     db: AsyncSession,
-    r: Redis,
     es: AsyncElasticsearch,
     current_user: UserModel,
     group: ChatModel

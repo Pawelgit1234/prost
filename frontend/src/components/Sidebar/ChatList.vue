@@ -74,13 +74,36 @@ const unpinned_chats = computed(() =>
 
 async function handleDeleteChat() {
   if (!selectedChat.value) return
-  folderStore.deleteChat(selectedChat.value.uuid)
   await chatStore.deleteChat(selectedChat.value.uuid)
-  await messageStore.deleteChatMessages(selectedChat.value.uuid)
+  folderStore.deleteChat(selectedChat.value.uuid)
+  messageStore.deleteChatMessages(selectedChat.value.uuid)
 }
 
-async function handleQuitGroup() {
+const menuItems = computed(() => {
+  if (!selectedChat.value) return []
 
+  const items = [
+    { label: 'Add to Folder', action: handleAddChatToFolder },
+    { label: 'Pin', action: handlePinChat },
+    { label: 'Delete Chat', action: handleDeleteChat },
+  ]
+
+  // Only for groups
+  if (selectedChat.value.chat_type === 'group') {
+    items.push(
+      { label: 'Add User to Group', action: handleAddUserToGroup },
+      { label: 'Quit', action: handleQuitGroup },
+    )
+  }
+
+  return items
+})
+
+async function handleQuitGroup() {
+  if (!selectedChat.value) return
+  await chatStore.quitChat(selectedChat.value.uuid)
+  folderStore.deleteChat(selectedChat.value.uuid)
+  messageStore.deleteChatMessages(selectedChat.value.uuid)
 }
 
 async function handleAddUserToGroup() {
@@ -120,13 +143,7 @@ async function handleAddUserToGroup() {
     :visible="isMenuVisible"
     :x="menuX"
     :y="menuY"
-    :items="[
-      { label: 'Add to Folder', action: handleAddChatToFolder },
-      {label: 'Pin', action: handlePinChat },
-      { label: 'Delete Chat', action: handleDeleteChat },
-      { label: 'Add User to Group', action: handleAddUserToGroup },
-      { label: 'Quit', action: handleQuitGroup },
-    ]"
+    :items="menuItems"
     @close="closeMenu"
   />
 
