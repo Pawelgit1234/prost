@@ -16,6 +16,7 @@ REDIS_PORT = 6379
 REDIS_CACHE_EXPIRE_SECONDS = 10 # TODO: change to 1 hour
 REDIS_FOLDERS_KEY = 'folders_{}' # 'folders_{user_uuid}'
 REDIS_CHATS_KEY = 'chats_{}' # 'chats_{user_uuid}'
+REDIS_USERS_KEY = 'users_{}' # 'users_{user_uuid}'
 REDIS_USER_JOIN_REQUESTS_KEY = 'user_join_requests_{}' # 'user_join_requests_{user_uuid}'
 REDIS_GROUP_JOIN_REQUESTS_KEY = 'group_join_requests_{}' # 'group_join_requests_{group_uuid}'
 REDIS_USER_INVITATION_KEY = 'user_invitation_{}' # 'user_invitation_{user_uuid}'

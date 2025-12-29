@@ -1,6 +1,7 @@
 from typing import Annotated
 from uuid import uuid4, UUID
 import logging
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, \
     Request, Cookie, Response, Body
@@ -10,14 +11,15 @@ from authlib.integrations.starlette_client import OAuth
 from redis.asyncio import Redis
 
 from src.database import get_db, get_redis
-from src.utils import save_to_db
-from src.dependencies import get_current_user
-from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID, FRONTEND_HOST
+from src.utils import save_to_db, wrap_list_response
+from src.dependencies import get_current_user, get_active_current_user
+from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID, FRONTEND_HOST, \
+    REDIS_CACHE_EXPIRE_SECONDS, REDIS_USERS_KEY
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
     decode_jwt_token, create_token_response, create_state, validate_state
 from src.auth.schemas import UserRegisterSchema, UserSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
-    activate_user, get_user_or_none
+    activate_user, get_user_or_none, get_all_users_from_db
 from src.auth.models import UserModel
 
 logger = logging.getLogger(__name__)
@@ -169,3 +171,27 @@ async def get_refresh_token(refresh_token: str | None = Cookie(default=None)):
 async def logout(reponse: Response):
     reponse.delete_cookie('refresh_token')
     return {'success': True}
+
+@router.get('/')
+async def get_all_users(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
+):
+    redis_key = REDIS_USERS_KEY.format(current_user.uuid)
+    if data := await r.get(redis_key):
+        return json.loads(data)
+
+    users = await get_all_users_from_db(db, current_user)
+    user_schemas = [UserSchema.model_validate(user) for user in users]
+    user_dict = [user.model_dump() for user in user_schemas]
+    data = wrap_list_response(user_dict)
+
+    await r.set(
+        redis_key,
+        json.dumps(data, default=str),
+        REDIS_CACHE_EXPIRE_SECONDS
+    )
+
+    return data
+   

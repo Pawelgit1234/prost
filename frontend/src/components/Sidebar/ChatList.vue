@@ -4,6 +4,8 @@ import type FolderSelectorModal from '../common/FolderSelectorModal.vue';
 import { useFolderStore, type FolderI } from '../../store/folders';
 import { computed, ref } from 'vue';
 import { useMessageStore } from '../../store/messages';
+import type { UserI } from '../../store/auth';
+import { useUserStore } from '../../store/users';
 
 const props = defineProps<{
   chats: ChatI[];
@@ -21,6 +23,7 @@ function selectChat(chatUuid: string) {
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
 const messageStore = useMessageStore()
+const userStore = useUserStore()
 
 // ---- ADD CHAT TO FOLDER ----
 const isAddToFolderModalOpen = ref(false)
@@ -30,6 +33,17 @@ async function handleAddChatToFolderSubmit(folders: FolderI[]) {
   if (!chatToAddInFolder.value) return
   await folderStore.addChatToFolders(chatToAddInFolder.value, folders)
   isAddToFolderModalOpen.value = false
+}
+
+// ---- ADD USER TO GROUP ----
+const isAddUserToGroupModalOpen = ref(false)
+const groupToAddUser = ref<ChatI | null>(null)
+
+async function handleAddUserToGroupSubmit(users: UserI[]) {
+  if (!groupToAddUser.value) return
+  const userUuids = users.map(user => user.uuid)
+  await chatStore.addUserToGroup(groupToAddUser.value, userUuids)
+  isAddUserToGroupModalOpen.value = false
 }
 
 // ---- CONTEXT MENU ----
@@ -52,7 +66,7 @@ function closeMenu() {
   isMenuVisible.value = false
 }
 
-async function handleAddChatToFolder() {
+function handleAddChatToFolder() {
   if (!selectedChat.value) return;
 
   chatToAddInFolder.value = selectedChat.value
@@ -107,7 +121,10 @@ async function handleQuitGroup() {
 }
 
 async function handleAddUserToGroup() {
-  
+  if (!selectedChat.value) return;
+
+  groupToAddUser.value = selectedChat.value
+  isAddUserToGroupModalOpen.value = true
 }
 </script>
 
@@ -158,6 +175,19 @@ async function handleAddUserToGroup() {
     }" 
     @close="isAddToFolderModalOpen = false"
     @submit="handleAddChatToFolderSubmit"
+  />
+
+  <!-- Add User to Group -->
+  <SearchSelectModal
+    :visible="isAddUserToGroupModalOpen"
+    title="Choose Users"
+    placeholder="Search for users"
+    :items="userStore.users"
+    :filterFn="(item: UserI) => groupToAddUser?.user_uuids.includes(item.uuid)"
+    :getKey="(item: UserI) => item.uuid"
+    :getLabel="(item: UserI) => item.username"
+    @submit="handleAddUserToGroupSubmit"
+    @close="isAddUserToGroupModalOpen = false"
   />
 </template>
 

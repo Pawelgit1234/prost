@@ -3,7 +3,7 @@ import draggable from 'vuedraggable';
 import { ref } from 'vue';
 import { protectedTypes, useFolderStore, type FolderI } from '../../store/folders';
 import { useChatStore, type ChatI } from '../../store/chats';
-import ChatSelectorModal from '../common/ChatSelectorModal.vue';
+import SearchSelectModal from '../common/SearchSelectModal.vue';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
@@ -146,12 +146,14 @@ async function onDragEnd() {
   />
 
   <!-- Replacing Modal -->
-  <ChatSelectorModal
+  <SearchSelectModal
     :visible="isReplaceModalOpen"
     title="Choose Chats"
     placeholder="Search for chats"
-    :chats="chatStore.chats"
-    :filterFn="(chat: ChatI) => folderToReplaceChats?.chat_uuids.includes(chat.uuid) ?? false"
+    :items="chatStore.chats"
+    :filterFn="(item: ChatI) => folderToReplaceChats?.chat_uuids.includes(item.uuid) ?? false"
+    :getKey="(item: ChatI) => item.uuid"
+    :getLabel="(item: ChatI) => item.name"
     @submit="handleReplaceSubmit"
     @close="isReplaceModalOpen = false"
   />

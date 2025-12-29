@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, aliased
 from sqlalchemy.exc import IntegrityError
 
 from src.utils import save_to_db, get_object_or_404
@@ -12,6 +12,7 @@ from src.settings import EMAIL_ACTIVATION_EXPIRE_MINUTES
 from src.auth.models import UserModel, EmailActivationTokenModel
 from src.auth.schemas import UserRegisterSchema
 from src.auth.utils import verify_password, get_password_hash
+from src.chats.models import UserChatAssociationModel
 from src.folders.services import create_folder_in_db
 from src.folders.enums import FolderType
 
@@ -108,3 +109,24 @@ async def activate_user(
     await db.commit()
 
     return user
+
+async def get_all_users_from_db(
+    db: AsyncSession,
+    user: UserModel
+) -> list[UserModel]:
+    """ Returns all connected users to 'user' """
+    ChatAssoc = UserChatAssociationModel
+    OtherAssoc = aliased(UserChatAssociationModel)
+
+    stmt = (
+        select(UserModel)
+        .join(OtherAssoc, UserModel.id == OtherAssoc.user_id)
+        .join(ChatAssoc, ChatAssoc.chat_id == OtherAssoc.chat_id)
+        .where(ChatAssoc.user_id == user.id)
+        .where(UserModel.id != user.id)
+        .distinct()
+    )
+
+    result = await db.execute(stmt)
+    return result.scalars().all()
+

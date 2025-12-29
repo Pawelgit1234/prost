@@ -1,31 +1,33 @@
-<script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+<script setup lang="ts" generic="T">
+import { computed, watch, shallowRef } from 'vue';
 import SearchInput from './SearchInput.vue';
-import type { ChatI } from '../../store/chats';
 
 const props = defineProps<{
   visible: boolean
   title: string
   placeholder?: string
-  chats: ChatI[]
-  filterFn: (chat: ChatI) => boolean // true -> in matched
+
+  items: T[]
+  filterFn: (item: T) => boolean // true -> in selected
+  getKey: (item: T) => string | number // key
+  getLabel: (item: T) => string 
 }>()
 
 const emit = defineEmits<{
-  (e: 'submit', value: ChatI[]): void
+  (e: 'submit', value: T[]): void
   (e: 'close'): void
 }>()
 
-const selected = ref(props.chats.filter(c => props.filterFn(c)))
+const selected = shallowRef(props.items.filter(i => props.filterFn(i)))
 const unselected = computed(() => {
-    return props.chats.filter(c => !selected.value.includes(c))
+    return props.items.filter(i => !selected.value.includes(i))
 })
 
-const filteredUnmatched = ref<ChatI[]>([])
+const filteredUnmatched = shallowRef<T[]>([])
 
 watch(() => props.visible, (val) => {
   if (val) {
-    selected.value = props.chats.filter(c => props.filterFn(c));
+    selected.value = props.items.filter(i => props.filterFn(i));
   }
 });
 </script>
@@ -38,12 +40,12 @@ watch(() => props.visible, (val) => {
             <h4>Selected</h4>
             <div class="scroll-box">
                 <div
-                  v-for="c in selected"
-                  :key="c.uuid"
-                  @click="selected = selected.filter(x => x !== c)"
-                  class="scrollbox-item"
+                  v-for="i in selected"
+                  :key="getKey(i)"
+                  @click="selected = selected.filter(x => x !== i)"
+                  class="scroll-box-item"
                 >
-                    {{ c.name }}
+                    {{ getLabel(i) }}
                 </div>
             </div>
 
@@ -52,7 +54,7 @@ watch(() => props.visible, (val) => {
             <SearchInput
                 :placeholder="placeholder"
                 :items="unselected"
-                :filterFn="(chat, q) => chat.name.toLowerCase().includes(q)"
+                :filterFn="(item, q) => getLabel(item).toLowerCase().includes(q)"
                 @filtered="val => filteredUnmatched = val"
             />
 
@@ -60,8 +62,11 @@ watch(() => props.visible, (val) => {
 
             <h4>Available</h4>
             <div class="scroll-box">
-                <div v-for="c in filteredUnmatched" :key="c.uuid" @click="selected.push(c)" class="scroll-box-item">
-                    {{ c.name }}
+                <div v-for="i in filteredUnmatched" 
+                :key="getKey(i)"
+                @click="selected = [...selected, i]"
+                class="scroll-box-item">
+                    {{ getLabel(i) }}
                 </div>
             </div>
 

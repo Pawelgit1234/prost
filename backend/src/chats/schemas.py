@@ -29,8 +29,13 @@ class ChatSchema(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_message: MessageSchema | None = Field(default=None) # optional
+    user_uuids: list[UUID]
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
 class SetChatFoldersSchema(BaseModel):
     folder_uuids: list[UUID]
+
+class AddUserToGroupSchema(BaseModel):
+    group_uuid: UUID
+    user_uuids: list[UUID]

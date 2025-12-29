@@ -11,11 +11,11 @@ from elasticsearch import AsyncElasticsearch
 
 from src.folders.services import get_folder_chat_assoc_or_404
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
-    quit_group_in_db, user_add_user_to_group_in_db, get_chat_or_404, get_chat_schemas, \
+    quit_group_in_db, set_users_in_group, get_chat_or_404, get_chat_schemas, \
     pin_chat_in_folder, set_chat_folder_in_db
-from src.chats.models import ChatModel
 from src.chats.utils import get_group_users_uuids
-from src.chats.schemas import CreateChatSchema, ChatSchema, SetChatFoldersSchema
+from src.chats.schemas import CreateChatSchema, ChatSchema, SetChatFoldersSchema, \
+    AddUserToGroupSchema
 from src.dependencies import get_active_current_user
 from src.utils import get_object_or_404, invalidate_cache, wrap_list_response
 from src.settings import ELASTIC_CHATS_INDEX_NAME, REDIS_CHATS_KEY, REDIS_CACHE_EXPIRE_SECONDS, \
@@ -106,27 +106,18 @@ async def quit_group(
     logger.info(f"'{current_user.username}' quit group '{group.name}'")
     return {'success': True}
 
-@router.post('{group_uuid}/add_user')
+@router.put('/add_user')
 async def add_user_to_group(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
-    group_uuid: UUID,
-    username: str
+    uuids: AddUserToGroupSchema
 ):
-    # two requests 'parallel' are faster
-    group, other_user = await asyncio.gather(
-        get_chat_or_404(db, group_uuid),
-        get_object_or_404(
-            db, UserModel, UserModel.username == username,
-            detail='User not found'
-        )
-    )
-
-    group = await user_add_user_to_group_in_db(db, es, group, other_user, current_user)
+    group = await get_chat_or_404(db, uuids.group_uuid)
+    await set_users_in_group(db, es, current_user, group, uuids.user_uuids)
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
-    return {'success': True}
+    return {'success': True }
 
 # # only for custom
 # @router.put('/add_chat')

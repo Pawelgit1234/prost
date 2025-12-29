@@ -227,17 +227,67 @@ async def user_add_user_to_group_in_db(
 
     return group
 
+async def set_users_in_group(
+    db: AsyncSession,
+    es: AsyncElasticsearch,
+    user: UserModel,
+    group: ChatModel,
+    user_uuids: list[UUID]
+) -> None:
+    ensure_user_in_chat_or_403(user, group, 'You are not in the group to set the users')
+
+    # --- current users in chat ---
+    current_user_ids = set(
+        await db.scalars(
+            select(UserChatAssociationModel.user_id).where(
+                UserChatAssociationModel.chat_id == group.id
+            )
+        )
+    )
+
+    # --- fetch new users ---
+    result = await db.execute(
+        select(UserModel).where(
+            UserModel.uuid.in_(user_uuids)
+        )
+    )
+    new_users = result.scalars().all()
+
+    new_user_ids = {u.id for u in new_users}
+
+    # --- diff ---
+    to_add = new_user_ids - current_user_ids
+    to_remove = current_user_ids - new_user_ids
+
+    # --- remove users ---
+    if to_remove:
+        await db.execute(
+            delete(UserChatAssociationModel).where(
+                UserChatAssociationModel.chat_id == group.id,
+                UserChatAssociationModel.user_id.in_(to_remove),
+            )
+        )
+
+    # --- add users ---
+    if to_add:
+        await db.execute(
+            insert(UserChatAssociationModel),
+            [
+                {"user_id": uid, "chat_id": group.id}
+                for uid in to_add
+            ],
+        )
+
+    await db.commit()
+    await update_group_members_in_elastic(es, group)
+
 async def set_chat_folder_in_db(
     db: AsyncSession,
     user: UserModel,
     chat: ChatModel,
     folder_uuids: list[UUID]
 ) -> None:
-    if not is_user_in_chat(user, chat):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Not your chat"
-        )
+    ensure_user_in_chat_or_403(user, chat, 'Not your Chat')
 
     # get current folder ids
     current_folder_ids = set(

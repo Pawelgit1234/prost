@@ -13,6 +13,7 @@ export interface ChatI {
   last_message?: string
   created_at: string
   updated_at: string
+  user_uuids: string[]
 }
 
 export const useChatStore = defineStore('chats', {
@@ -76,6 +77,24 @@ export const useChatStore = defineStore('chats', {
         }
       } catch (error) {
         console.error("Error deleting chat:", error)
+      }
+    },
+    async addUserToGroup(group: ChatI, userUuids: string[]) {
+      try {
+        const payload = { group_uuid: group.uuid, user_uuids: userUuids };
+        const response = await axiosInstance.put('/chats/add_user', payload, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (!response.data.success) {
+          console.error("Users were not added to group")
+          return
+        }
+
+        group.user_uuids = userUuids
+
+      } catch (error) {
+        console.error("Error adding users to group: ", error)
       }
     }
   },

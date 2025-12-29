@@ -27,7 +27,8 @@ def chat_and_message_model_to_schema(
         is_visible=chat.is_visible,
         last_message=message_model_to_schema(last_message) if last_message is not None else None,
         created_at=chat.created_at,
-        updated_at=chat.updated_at
+        updated_at=chat.updated_at,
+        user_uuids=[assoc.user.uuid for assoc in chat.user_associations]
     )
 
 def other_user_to_chat_schema(
@@ -53,7 +54,8 @@ def other_user_to_chat_schema(
         is_visible=other_user.is_visible,
         last_message=message_model_to_schema(last_message) if last_message is not None else None,
         created_at=chat.created_at,
-        updated_at=chat.updated_at
+        updated_at=chat.updated_at,
+        user_uuids=[assoc.user.uuid for assoc in chat.user_associations]
     )
 
 def group_folders_by_type(folders: list[FolderModel]) -> dict[FolderType, FolderModel]:
