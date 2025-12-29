@@ -27,6 +27,26 @@ export const useAuthStore = defineStore('auth', {
     currentUser: null as UserI | null,
   }),
   actions: {
+    async restoreSession() {
+     try {
+        const response = await axiosInstance.post(
+          '/auth/refresh/',
+          {},
+          { withCredentials: true }
+        )
+
+        let data = response.data; // { user, access_token, token_type } 
+
+        this.accessToken = data.access_token;
+        this.currentUser = data.user as UserI;
+        this.isLoggedIn = true;
+
+        return true
+      } catch (e) {
+        this.isLoggedIn = false
+        return false
+      }
+    },
     async logout() {
       await axiosInstance.post('/auth/logout'); // cleans refresh token
 

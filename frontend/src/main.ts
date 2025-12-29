@@ -9,9 +9,13 @@ import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
 
 import pinia from './store/index'
+import { useAuthStore } from './store/auth'
 
 const app = createApp(App)
 app.use(createBootstrap())
 app.use(pinia)
 app.use(router)
 app.mount('#app')
+
+const authStore = useAuthStore(pinia)
+await authStore.restoreSession()
