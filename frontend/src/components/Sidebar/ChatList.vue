@@ -122,7 +122,6 @@ async function handleQuitGroup() {
 
 async function handleAddUserToGroup() {
   if (!selectedChat.value) return;
-
   groupToAddUser.value = selectedChat.value
   isAddUserToGroupModalOpen.value = true
 }
