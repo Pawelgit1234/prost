@@ -8,17 +8,20 @@ import { useMessageStore } from '../store/messages';
 import FolderList from '../components/Sidebar/FolderList.vue';
 import ChatList from '../components/Sidebar/ChatList.vue';
 import { useUserStore } from '../store/users';
+import { useSearchStore } from '../store/search';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
 const messageStore = useMessageStore()
 const userStore = useUserStore()
+const searchStore = useSearchStore()
 
 onMounted(async () => {
   await Promise.all([
     folderStore.fetchFolders(),
     chatStore.fetchChats(),
-    userStore.fetchUsers()
+    userStore.fetchUsers(),
+    searchStore.loadHistory()
   ])
 })
 

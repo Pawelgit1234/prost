@@ -20,7 +20,7 @@ async def search_global(
     r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
-    q: str = Query(..., min_length=1),
+    q: str = Query(..., min_length=1, max_length=100),
     page: int = Query(1, ge=1),
 ):
     await add_query_to_history(r, current_user.uuid, q)
@@ -102,7 +102,7 @@ async def search_messages(
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     chat_uuid: UUID,
-    q: str,
+    q: str = Query(..., min_length=1, max_length=100),
     page: int = Query(1, ge=1),
 ):
     await add_query_to_history(r, current_user.uuid, q)

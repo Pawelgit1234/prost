@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core'
 import { useChatStore, type ChatI } from '../../store/chats';
 import type FolderSelectorModal from '../common/FolderSelectorModal.vue';
 import { useFolderStore, type FolderI } from '../../store/folders';
-import { computed, ref } from 'vue';
 import { useMessageStore } from '../../store/messages';
 import type { UserI } from '../../store/auth';
 import { useUserStore } from '../../store/users';
+import { useSearchStore } from '../../store/search';
 
 const props = defineProps<{
   chats: ChatI[];
@@ -125,11 +127,84 @@ async function handleAddUserToGroup() {
   groupToAddUser.value = selectedChat.value
   isAddUserToGroupModalOpen.value = true
 }
+
+// Global Search
+const searchStore = useSearchStore()
+const isSearchActive = ref(false)
+const search = ref('')
+const autocompleteWord = ref('')
+
+const runSearch = useDebounceFn(async (value: string) => {
+  if (value.length < 2) return
+
+  searchStore.reset(value)
+  await searchStore.fetchSearchPage()
+  await searchStore.loadHistory()
+}, 400)
+
+function autocomplete(value: string) {
+  autocompleteWord.value = ''
+
+  if (!value) return
+
+  const match = searchStore.queries.find(q =>
+    q.startsWith(value) && q !== value
+  )
+
+  if (match) {
+    autocompleteWord.value = match
+  }
+}
+
+function applyAutocomplete() {
+  if (!autocompleteWord.value) return
+  search.value = autocompleteWord.value
+  autocompleteWord.value = ''
+}
+
+watch(search, (value) => {
+  if (!value) {
+    isSearchActive.value = false
+    return
+  }
+  isSearchActive.value = true
+  autocomplete(value)
+  runSearch(value)
+})
 </script>
 
 <template>
-  
-  <div class="chat-list">
+  <div class="p-2">
+    <div class="search-wrapper">
+
+      <!-- AUTOCOMPLETE BACKGROUND -->
+      <input
+        type="text"
+        class="form-control form-control-sm search-ghost"
+        :value="autocompleteWord"
+        disabled
+      />
+
+      <!-- REAL INPUT -->
+      <input
+        v-model="search"
+        type="text"
+        class="form-control form-control-sm search-input"
+        placeholder="Search"
+        @focus="isSearchActive = true"
+        @blur="isSearchActive = false"
+        @keydown.tab.prevent="applyAutocomplete"
+      />
+    </div>
+  </div>
+
+
+
+  <div class="search-results" v-if="isSearchActive">
+
+  </div>
+
+  <div class="chat-list" v-if="!isSearchActive">
     <div
       v-for="chat in pinned_chats"
       :key="chat.uuid"
@@ -242,6 +317,28 @@ async function handleAddUserToGroup() {
 .chat-item:hover .pin-icon {
   transform: rotate(-20deg);
   transition: transform 0.2s ease;
+}
+
+.search-wrapper {
+  position: relative;
+}
+
+.search-ghost {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  color: #aaa;
+  background-color: white;
+  pointer-events: none;
+}
+
+.search-input {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+
+  color: transparent;
+  caret-color: black;
 }
 
 </style>
