@@ -12,7 +12,8 @@ from src.settings import EMAIL_ACTIVATION_EXPIRE_MINUTES
 from src.auth.models import UserModel, EmailActivationTokenModel
 from src.auth.schemas import UserRegisterSchema
 from src.auth.utils import verify_password, get_password_hash
-from src.chats.models import UserChatAssociationModel
+from src.chats.models import UserChatAssociationModel, ChatModel
+from src.chats.enums import ChatType
 from src.folders.services import create_folder_in_db
 from src.folders.enums import FolderType
 
@@ -35,7 +36,7 @@ async def authenticate_user(
         return False
     return user
 
-async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserModel:
+async def create_user(db: AsyncSession, user_data: UserRegisterSchema, is_active=False) -> UserModel:
     try:
         user = UserModel(
             first_name=user_data.first_name,
@@ -43,7 +44,8 @@ async def create_user(db: AsyncSession, user_data: UserRegisterSchema) -> UserMo
             username=user_data.username,
             description=user_data.description,
             email=user_data.email,
-            password=get_password_hash(user_data.password)
+            password=get_password_hash(user_data.password),
+            is_active=is_active
         )
         user = (await save_to_db(db, [user]))[0]
 
@@ -130,3 +132,24 @@ async def get_all_users_from_db(
     result = await db.execute(stmt)
     return result.scalars().all()
 
+async def get_all_users_connected_by_normal_chat(
+    db: AsyncSession,
+    user: UserModel
+) -> list[UserModel]:
+    """ Returns all connected via NORMAL chat users to 'user' """
+    ChatAssoc = UserChatAssociationModel
+    OtherAssoc = aliased(UserChatAssociationModel)
+
+    stmt = (
+        select(UserModel)
+        .join(OtherAssoc, UserModel.id == OtherAssoc.user_id)
+        .join(ChatAssoc, ChatAssoc.chat_id == OtherAssoc.chat_id)
+        .join(ChatModel, ChatModel.id == OtherAssoc.chat_id)
+        .where(ChatAssoc.user_id == user.id)
+        .where(UserModel.id != user.id)
+        .where(ChatModel.chat_type == ChatType.NORMAL)
+        .distinct()
+    )
+
+    result = await db.execute(stmt)
+    return result.scalars().all()

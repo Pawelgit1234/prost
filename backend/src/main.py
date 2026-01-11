@@ -9,13 +9,23 @@ from starlette.middleware.sessions import SessionMiddleware
 from src.routers import main_router
 from src.settings import SECRET_KEY, FRONTEND_HOST
 from src.logger import setup_logging
-from src.database import create_indices
+from src.database import create_indices, wait_for_elasticsearch, sync_db_to_elastic,\
+    es, async_session
 from src.invitations.background import periodic_invitation_cleaner
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # logging
     setup_logging()
-    await create_indices() # elasticsearch
+
+    # elasticsearch
+    await wait_for_elasticsearch(es)
+    await create_indices(es)
+
+    # async with async_session() as db:
+    #     await sync_db_to_elastic(db, es)
+
+    # invitation cleaner
     asyncio.create_task(periodic_invitation_cleaner()) # deletes old invitations
     yield
 

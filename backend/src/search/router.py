@@ -4,12 +4,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.settings import ELASTIC_PAGE_SIZE, REDIS_SEARCH_HISTORY_KEY, \
     ELASTIC_CHATS_INDEX_NAME, ELASTIC_USERS_INDEX_NAME, ELASTIC_MESSAGES_INDEX_NAME
-from src.database import get_es, get_redis
+from src.database import get_db, get_es, get_redis
 from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
+from src.auth.services import get_all_users_connected_by_normal_chat
 from src.search.utils import add_query_to_history, parse_elastic_response
 
 router = APIRouter(prefix='/search', tags=['search'])
@@ -17,6 +19,7 @@ router = APIRouter(prefix='/search', tags=['search'])
 # users, groups, messages + own chats
 @router.get('/global')
 async def search_global(
+    db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
@@ -24,6 +27,9 @@ async def search_global(
     page: int = Query(1, ge=1),
 ):
     await add_query_to_history(r, current_user.uuid, q)
+
+    existing_chat_partners_uuids = [u.uuid for u in await get_all_users_connected_by_normal_chat(db, current_user)]
+    existing_chat_partners_uuids.append(current_user.uuid) # workaround: do not show you to yourself
 
     response = await es.search(
         index=f'{ELASTIC_USERS_INDEX_NAME},{ELASTIC_CHATS_INDEX_NAME},{ELASTIC_MESSAGES_INDEX_NAME}',
@@ -34,7 +40,7 @@ async def search_global(
                         "multi_match": {
                             "query": q,
                             "fields": [
-                                'name^5', 'name.autocomplete^3',
+                                'name^5', 'name.autocomplete^3', 'user_names^5',
                                 'username^4', 'username.autocomplete^2',
                                 'first_name^2', 'first_name.autocomplete',
                                 'last_name^2', 'last_name.autocomplete',
@@ -48,8 +54,22 @@ async def search_global(
                     "filter": {
                         "bool": {
                             "should": [
-                                # All users are public by default
-                                { "term": { "_index": ELASTIC_USERS_INDEX_NAME } },
+                                {
+                                  "bool": {
+                                    "must": [
+                                      { "term": { "_index": ELASTIC_USERS_INDEX_NAME } },
+                                      { "term": { "is_visible": True } }
+                                    ],
+                                    # do not show, if already in a normal chat
+                                    "must_not": [
+                                      {
+                                        "ids": {
+                                          "values": existing_chat_partners_uuids
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
 
                                 # Chats: show if is_visible OR user is a member
                                 {

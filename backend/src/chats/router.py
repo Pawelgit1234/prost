@@ -1,10 +1,9 @@
-import asyncio
 import logging
 from typing import Annotated
 from uuid import UUID
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from elasticsearch import AsyncElasticsearch
@@ -12,12 +11,12 @@ from elasticsearch import AsyncElasticsearch
 from src.folders.services import get_folder_chat_assoc_or_404
 from src.chats.services import create_chat_in_db, delete_chat_in_db,\
     quit_group_in_db, set_users_in_group, get_chat_or_404, get_chat_schemas, \
-    pin_chat_in_folder, set_chat_folder_in_db
-from src.chats.utils import get_group_users_uuids
-from src.chats.schemas import CreateChatSchema, ChatSchema, SetChatFoldersSchema, \
+    pin_chat_in_folder, set_chat_folder_in_db, add_user_to_group_in_db
+from src.chats.utils import chat_to_schema, add_chat_to_elastic
+from src.chats.schemas import CreateChatSchema, SetChatFoldersSchema, \
     AddUserToGroupSchema
 from src.dependencies import get_active_current_user
-from src.utils import get_object_or_404, invalidate_cache, wrap_list_response
+from src.utils import invalidate_cache, wrap_list_response
 from src.settings import ELASTIC_CHATS_INDEX_NAME, REDIS_CHATS_KEY, REDIS_CACHE_EXPIRE_SECONDS, \
     REDIS_FOLDERS_KEY
 from src.auth.models import UserModel
@@ -57,22 +56,11 @@ async def create_chat(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     chat_info: CreateChatSchema
 ):
-    chat = await create_chat_in_db(db, r, current_user, chat_info)
+    chat = await create_chat_in_db(db, current_user, chat_info)
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
-    await es.index(
-        index=ELASTIC_CHATS_INDEX_NAME,
-        id=str(chat.uuid),
-        documene={
-            "chat_type": chat.chat_type.value,
-            "name": chat.name,
-            "description": chat.description,
-            "avatar": None,
-            "members": get_group_users_uuids(chat),
-            "is_visible": chat.is_visible,
-        }
-    )
-    logger.info(f"Chat '{chat.name}' created by '{current_user.username}'")
-    return ChatSchema.model_validate(chat)
+    await add_chat_to_elastic(es, chat, current_user.username, chat_info.name)
+    logger.info(f"Chat '{chat.uuid}' created by '{current_user.username}'")
+    return chat_to_schema(current_user, chat, None)
 
 @router.delete('/{chat_uuid}')
 async def delete_chat(
@@ -118,6 +106,33 @@ async def add_user_to_group(
     await set_users_in_group(db, es, current_user, group, uuids.user_uuids)
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
     return {'success': True }
+
+@router.put('/join_group/{group_uuid}')
+async def join_group(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r: Annotated[Redis, Depends(get_redis)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
+    current_user: Annotated[UserModel, Depends(get_active_current_user)],
+    group_uuid: UUID
+):
+    group = await get_chat_or_404(db, group_uuid)
+
+    if not group.is_open_for_messages:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail='Group is not open for messages')
+
+    await add_user_to_group_in_db(db, es, group, current_user)
+    await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
+    return {'success': True } # возвращять группу полностю, что можно было добавить
+
+    
+    
+    
+
+
+    
+    
+
 
 # # only for custom
 # @router.put('/add_chat')

@@ -7,7 +7,8 @@ import { useFolderStore, type FolderI } from '../../store/folders';
 import { useMessageStore } from '../../store/messages';
 import type { UserI } from '../../store/auth';
 import { useUserStore } from '../../store/users';
-import { useSearchStore } from '../../store/search';
+import { useSearchStore, type SearchItem } from '../../store/search';
+import JoinRequestModal from '../common/JoinRequestModal.vue';
 
 const props = defineProps<{
   chats: ChatI[];
@@ -16,10 +17,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:selectedChat', chatUuid: string): void;
+  (e: 'choosedMessage', messageUuid: string): void;
 }>();
 
 function selectChat(chatUuid: string) {
   emit('update:selectedChat', chatUuid);
+}
+
+function chooseMessage(messageUuid: string) {
+  emit('choosedMessage', messageUuid);
 }
 
 const folderStore = useFolderStore()
@@ -46,6 +52,15 @@ async function handleAddUserToGroupSubmit(users: UserI[]) {
   const userUuids = users.map(user => user.uuid)
   await chatStore.addUserToGroup(groupToAddUser.value, userUuids)
   isAddUserToGroupModalOpen.value = false
+}
+
+// ---- JOIN REQUEST ----
+const isJoinRequestModalOpen = ref(false)
+const searchItem = ref<SearchItem | null>(null) // group or user
+
+function handleJoinRequest(item: SearchItem) {
+  searchItem.value = item
+  isJoinRequestModalOpen.value = true
 }
 
 // ---- CONTEXT MENU ----
@@ -163,20 +178,37 @@ function applyAutocomplete() {
 }
 
 watch(search, (value) => {
-  if (!value) {
-    isSearchActive.value = false
-    return
-  }
-  isSearchActive.value = true
+  isSearchActive.value = value.length > 0
   autocomplete(value)
   runSearch(value)
 })
+
+async function createChatOrJoinRequest(item: SearchItem) {
+  if (item.is_open_for_messages) {
+    if (item.chat_type === 'group') { // add to group
+      await chatStore.joinGroup(item.uuid)
+    } else if (item.type === 'users') { // create chat
+
+    }
+  } else {
+
+  }
+
+  
+  // ...
+  // selectChat()
+  isJoinRequestModalOpen.value = false
+}
+
+async function selectChatOrChooseMessage(item: SearchItem) {
+  if (item.type === "chats") selectChat(item.uuid)
+  else if (item.type === "messages") chooseMessage(item.uuid)
+}
 </script>
 
 <template>
   <div class="p-2">
     <div class="search-wrapper">
-
       <!-- AUTOCOMPLETE BACKGROUND -->
       <input
         type="text"
@@ -191,17 +223,31 @@ watch(search, (value) => {
         type="text"
         class="form-control form-control-sm search-input"
         placeholder="Search"
-        @focus="isSearchActive = true"
-        @blur="isSearchActive = false"
         @keydown.tab.prevent="applyAutocomplete"
       />
     </div>
   </div>
 
-
-
   <div class="search-results" v-if="isSearchActive">
+    <h5>Global results</h5>
+    <div
+      v-for="item in searchStore.globalItems"
+      :key="item.uuid"
+      class="chat-item"
+      @click.left.prevent="handleJoinRequest(item)"
+    >
+      <div class="chat-name">{{ item.name || item.username }}</div>
+    </div>
 
+    <h5>Local results</h5>
+    <div
+      v-for="item in searchStore.localItems"
+      :key="item.uuid"
+      :class="['chat-item', { selected: item.uuid === selectedChatUuid }]"
+      @click.left.prevent="selectChatOrChooseMessage(item)"
+    >
+      <div class="chat-name">{{ userStore.getUserFromOneOfTheMembers(item.members || [])?.username }}</div>
+    </div>
   </div>
 
   <div class="chat-list" v-if="!isSearchActive">
@@ -263,10 +309,19 @@ watch(search, (value) => {
     @submit="handleAddUserToGroupSubmit"
     @close="isAddUserToGroupModalOpen = false"
   />
+
+  <!-- Join Request -->
+  <JoinRequestModal
+    v-if="searchItem"
+    :visible="isJoinRequestModalOpen"
+    :item="searchItem"
+    @submit="createChatOrJoinRequest"
+    @close="isJoinRequestModalOpen = false"
+  />
 </template>
 
 <style scoped>
-.chat-list {
+.chat-list, .search-results {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -337,8 +392,6 @@ watch(search, (value) => {
   z-index: 2;
   background: transparent !important;
 
-  color: transparent;
   caret-color: black;
 }
-
 </style>

@@ -13,7 +13,7 @@ from src.chats.enums import ChatType
 from src.messages.models import MessageModel
 from src.messages.utils import message_model_to_schema
 
-def chat_and_message_model_to_schema(
+def group_and_message_model_to_schema(
     chat: ChatModel,
     last_message: MessageModel
 ) -> ChatSchema:
@@ -57,6 +57,11 @@ def other_user_to_chat_schema(
         updated_at=chat.updated_at,
         user_uuids=[assoc.user.uuid for assoc in chat.user_associations]
     )
+
+def chat_to_schema(user: UserModel, chat: ChatModel, last_message: MessageModel) -> ChatSchema:
+    if chat.chat_type == ChatType.GROUP:
+        return group_and_message_model_to_schema(chat, last_message)
+    return other_user_to_chat_schema(user, chat, last_message)
 
 def group_folders_by_type(folders: list[FolderModel]) -> dict[FolderType, FolderModel]:
     return {f.folder_type: f for f in folders}
@@ -114,5 +119,27 @@ async def update_group_members_in_elastic(es: AsyncElasticsearch, chat: ChatMode
         id=str(chat.uuid),
         doc={
             "members": get_group_users_uuids(chat),
+        }
+    )
+
+async def add_chat_to_elastic(
+    es: AsyncElasticsearch,
+    chat: ChatModel,
+    username: str = None,
+    other_username: str = None,
+    avatar: str = None
+) -> None:
+    await es.index(
+        index=ELASTIC_CHATS_INDEX_NAME,
+        id=str(chat.uuid),
+        document={
+            "chat_type": chat.chat_type.value,
+            "name": chat.name if chat.chat_type == ChatType.GROUP else None,
+            "description": chat.description,
+            "avatar": avatar, # if group creation, than None (later in settings) else over uuid
+            "members": get_group_users_uuids(chat),
+            "user_names": [username, other_username] if chat.chat_type == ChatType.NORMAL else None,
+            "is_visible": chat.is_visible,
+            "is_open_for_messages": chat.is_open_for_messages,
         }
     )

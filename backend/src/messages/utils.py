@@ -1,3 +1,5 @@
+from elasticsearch import AsyncElasticsearch
+
 from src.messages.models import MessageModel
 from src.messages.schemas import MessageSchema
 

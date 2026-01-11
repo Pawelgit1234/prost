@@ -16,6 +16,10 @@ export const useUserStore = defineStore('users', {
         console.error("Error fetching users:", error)
       }
     },
+    getUserFromOneOfTheMembers(memberUuids: string[]) {
+      const user = this.users?.find(user => memberUuids.includes(user.uuid))
+      return user || null
+    }
   },
   persist: true,
 })

@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import axiosInstance from '../api/axios'
 import { useFolderStore, type FolderI } from './folders'
+import { useAuthStore } from './auth';
 
 export interface ChatI {
   uuid: string
-  chat_type: string
+  chat_type: 'group' | 'normal';
   name: string
   description: string
   avatar?: string // url
@@ -39,6 +40,9 @@ export const useChatStore = defineStore('chats', {
     },
     addChat(chat: ChatI) {
       this.chats.push(chat)
+    },
+    getChatByUuid(uuid: string) {
+      return this.chats.filter(c => c.uuid == uuid)
     },
     getChatsByFolder(folder?: FolderI) {
       if (!folder) return []
@@ -96,7 +100,27 @@ export const useChatStore = defineStore('chats', {
       } catch (error) {
         console.error("Error adding users to group: ", error)
       }
-    }
+    },
+    async joinGroup(group_uuid: string) {
+      const authStore = useAuthStore()
+      if (!authStore.currentUser) {
+          console.error("You was not added to group")
+          return
+      }
+
+      try {
+        const response = await axiosInstance.put(`/chats/join_group/${group.uuid}`);
+
+        if (!response.data.success) {
+          console.error("You was not added to group")
+          return
+        }
+
+
+      } catch (error) {
+        console.error("Error adding you to group: ", error)
+      }
+    },
   },
   persist: true
 })

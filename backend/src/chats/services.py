@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload, aliased
-from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
 
 from src.utils import save_to_db, get_object_or_404
@@ -16,8 +15,7 @@ from src.chats.schemas import CreateChatSchema
 from src.chats.models import ChatModel, UserChatAssociationModel
 from src.chats.enums import ChatType
 from src.chats.utils import group_folders_by_type, ensure_user_in_chat_or_403,\
-    update_group_members_in_elastic, ensure_no_normal_chat_or_403, chat_and_message_model_to_schema,\
-    other_user_to_chat_schema
+    update_group_members_in_elastic, ensure_no_normal_chat_or_403, chat_to_schema
 from src.chats.utils import is_user_in_chat
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
@@ -64,11 +62,7 @@ async def get_chat_schemas(db: AsyncSession, user: UserModel):
     schemas = []
 
     for chat, last_message in chats:
-        if chat.chat_type == ChatType.GROUP:
-            schemas.append(chat_and_message_model_to_schema(chat, last_message))
-        else:
-            schemas.append(other_user_to_chat_schema(user, chat, last_message))
-
+        schemas.append(chat_to_schema(user, chat, last_message))
     return schemas
 
 # is shorter in that way

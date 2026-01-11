@@ -2,11 +2,30 @@ import { defineStore } from "pinia"
 import axiosInstance from "../api/axios"
 
 export interface SearchItem {
-  uuid: string
-  type: 'users' | 'chats' | 'messages'
-  name?: string
-  text?: string
-  username?: string
+  uuid: string;
+  type: 'users' | 'chats' | 'messages';
+
+  // Users
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+
+  // Chats
+  name?: string;
+  chat_type?: 'group' | 'normal';
+  members?: string[]; // uuids of users
+  user_names?: string[];
+  is_yours?: boolean; // for chats: indicates if current user is a member
+
+  // Users & Chats
+  avatar?: string;
+  is_open_for_messages?: boolean;
+  is_visible?: boolean;
+  description?: string;
+
+  // Messages
+  text?: string;
+  chat?: string; // chat uuid for message
 }
 
 export const useSearchStore = defineStore('search', {
@@ -20,7 +39,22 @@ export const useSearchStore = defineStore('search', {
     loading: false,
     hasMore: true,
   }),
-
+  getters: {
+    globalItems(state): SearchItem[] {
+      return state.items.filter(item => {
+        if (item.type === 'users') return true
+        if (item.type === 'chats') return !item.is_yours
+        return false
+      })
+    },
+    localItems(state): SearchItem[] {
+      return state.items.filter(item => {
+        if (item.type === 'chats') return item.is_yours
+        if (item.type === 'messages') return true
+        return false
+      })
+    }
+  },
   actions: {
     reset(query: string) {
       this.query = query

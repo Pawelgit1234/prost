@@ -10,12 +10,14 @@ from passlib.context import CryptContext
 import aiosmtplib
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
+from elasticsearch import AsyncElasticsearch
 
 from src.settings import SECRET_KEY, ALGORITHM, \
     SMTP_SERVER, SMTP_PORT, SENDER_EMAIL, SENDER_EMAIL_PASSWORD, \
     ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, HTTPS, \
-    REDIS_GOOGLE_STATE_KEY, GOOGLE_STATE_LIFETIME
+    REDIS_GOOGLE_STATE_KEY, GOOGLE_STATE_LIFETIME, ELASTIC_USERS_INDEX_NAME
 from src.auth.schemas import TokenDataSchema
+from src.auth.models import UserModel
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -117,3 +119,18 @@ async def validate_state(r: Redis, state: str) -> bool:
         return True
     return False
     
+async def add_user_to_elastic(es: AsyncElasticsearch, user: UserModel) -> None:
+    await es.index(
+        index=ELASTIC_USERS_INDEX_NAME,
+        id=str(user.uuid),
+        document={
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "username": user.username,
+            "description": user.description,
+            "avatar": user.avatar,
+            "is_open_for_messages": user.is_open_for_messages,
+            "is_visible": user.is_visible,
+            "is_active": user.is_active,
+        }
+    )

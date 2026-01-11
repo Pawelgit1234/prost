@@ -9,18 +9,21 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth
 from redis.asyncio import Redis
+from elasticsearch import AsyncElasticsearch
 
-from src.database import get_db, get_redis
+from src.database import get_db, get_redis, get_es
 from src.utils import save_to_db, wrap_list_response
 from src.dependencies import get_current_user, get_active_current_user
 from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID, FRONTEND_HOST, \
     REDIS_CACHE_EXPIRE_SECONDS, REDIS_USERS_KEY
 from src.auth.utils import create_access_token, create_refresh_token, send_html_email, \
-    decode_jwt_token, create_token_response, create_state, validate_state
+    decode_jwt_token, create_token_response, create_state, validate_state, add_user_to_elastic
 from src.auth.schemas import UserRegisterSchema, UserSchema
 from src.auth.services import authenticate_user, create_user, create_email_activation_token, \
     activate_user, get_user_or_none, get_all_users_from_db
 from src.auth.models import UserModel
+from src.folders.services import create_folder_in_db
+from src.folders.enums import FolderType
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,7 @@ async def get_google_oauth_redirect_uri(
 async def google_callback(
     db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
     code: Annotated[str, Body(...)],
     state: Annotated[str, Body(...)],
 ):
@@ -80,6 +84,14 @@ async def google_callback(
             is_active=user_info['verified_email']
         )
         user = (await save_to_db(db, [new_user]))[0]
+
+        # creates all folder types (except custom)
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.ALL)
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.CHATS)
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.GROUPS)
+        await create_folder_in_db(db=db, user=user, folder_type=FolderType.NEW)
+
+        await add_user_to_elastic(es, user)
 
         logging.info(f'{user.username} registered in by google')
     else:
@@ -116,6 +128,7 @@ async def login(
 @router.post('/register')
 async def register(
     db: Annotated[AsyncSession, Depends(get_db)],
+    es: Annotated[AsyncElasticsearch, Depends(get_es)],
     background_tasks: BackgroundTasks,
     user_data: UserRegisterSchema
 ):
@@ -134,6 +147,8 @@ async def register(
             <a href={activation_link}>link</a>.
         """
     )
+
+    await add_user_to_elastic(es, user)
 
     logging.info(f'{user.username} registration completed')
     access_token = create_access_token({'sub': user.username})
