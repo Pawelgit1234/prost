@@ -123,16 +123,7 @@ async def join_group(
 
     await add_user_to_group_in_db(db, es, group, current_user)
     await invalidate_cache(r, REDIS_CHATS_KEY, current_user.uuid)
-    return {'success': True } # возвращять группу полностю, что можно было добавить
-
-    
-    
-    
-
-
-    
-    
-
+    return chat_to_schema(current_user, group, None)
 
 # # only for custom
 # @router.put('/add_chat')

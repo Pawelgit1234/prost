@@ -92,12 +92,15 @@ async def create_join_request(
         await invalidate_cache(r, REDIS_GROUP_JOIN_REQUESTS_KEY, join_request_info.target_uuid)
     
     logger.info(f'Join request created by {current_user.username}')
-    return JoinRequestSchema(
-        uuid=join_request.uuid,
-        join_request_type=join_request_info.join_request_type,
-        target_uuid=join_request_info.target_uuid,
-        sender_user_uuid=current_user.uuid
-    )
+
+    # return JoinRequestSchema(
+    #     uuid=join_request.uuid,
+    #     join_request_type=join_request_info.join_request_type,
+    #     target_uuid=join_request_info.target_uuid,
+    #     sender_user_uuid=current_user.uuid
+    # )
+
+    return {"success": True}
 
 
 @router.delete('/approve')

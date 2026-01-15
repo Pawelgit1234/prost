@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import axiosInstance from '../api/axios'
 import { useFolderStore, type FolderI } from './folders'
 import { useAuthStore } from './auth';
+import { useUserStore } from './users';
 
 export interface ChatI {
   uuid: string
@@ -103,24 +104,45 @@ export const useChatStore = defineStore('chats', {
     },
     async joinGroup(group_uuid: string) {
       const authStore = useAuthStore()
+      const userStore = useUserStore()
+
       if (!authStore.currentUser) {
           console.error("You was not added to group")
           return
       }
 
       try {
-        const response = await axiosInstance.put(`/chats/join_group/${group.uuid}`);
+        const response = await axiosInstance.put(`/chats/join_group/${group_uuid}`);
+        const group = response.data as ChatI
+        this.chats.push(group)
 
-        if (!response.data.success) {
-          console.error("You was not added to group")
-          return
-        }
-
-
+        await userStore.fetchUsers()
       } catch (error) {
         console.error("Error adding you to group: ", error)
       }
     },
+    async createChat(username: string) {
+      const authStore = useAuthStore()
+      const userStore = useUserStore()
+
+      if (!authStore.currentUser) {
+          console.error("Chat was not created")
+          return
+      }
+
+      try {
+        const payload = { chat_type: 'normal', name: username };
+        const response = await axiosInstance.post('/chats/', payload, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const chat = response.data as ChatI
+        this.chats.push(chat)
+        await userStore.fetchUsers()
+        return chat
+      } catch (error) {
+        console.error("Error creating chat: ", error)
+      }
+    }
   },
   persist: true
 })

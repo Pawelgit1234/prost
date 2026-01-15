@@ -9,6 +9,7 @@ import type { UserI } from '../../store/auth';
 import { useUserStore } from '../../store/users';
 import { useSearchStore, type SearchItem } from '../../store/search';
 import JoinRequestModal from '../common/JoinRequestModal.vue';
+import { useJoinRequestsStore } from '../../store/join_requests';
 
 const props = defineProps<{
   chats: ChatI[];
@@ -32,6 +33,7 @@ const folderStore = useFolderStore()
 const chatStore = useChatStore()
 const messageStore = useMessageStore()
 const userStore = useUserStore()
+const joinRequestStore = useJoinRequestsStore()
 
 // ---- ADD CHAT TO FOLDER ----
 const isAddToFolderModalOpen = ref(false)
@@ -184,19 +186,32 @@ watch(search, (value) => {
 })
 
 async function createChatOrJoinRequest(item: SearchItem) {
+  // manual tests
+
+
+
+
+
+
   if (item.is_open_for_messages) {
     if (item.chat_type === 'group') { // add to group
       await chatStore.joinGroup(item.uuid)
+      selectChat(item.uuid)
     } else if (item.type === 'users') { // create chat
-
+      if (item.username) {
+        const chat = await chatStore.createChat(item.username)
+        if (chat) selectChat(chat.uuid)
+        else console.error("Chat not created")
+      } else console.error("No username found")
     }
   } else {
-
+    if (item.chat_type === 'group') {
+      await joinRequestStore.createJoinRequest(item.uuid, "group")
+    } else if (item.type === 'users') {
+      await joinRequestStore.createJoinRequest(item.uuid, "user")
+    }
   }
 
-  
-  // ...
-  // selectChat()
   isJoinRequestModalOpen.value = false
 }
 
