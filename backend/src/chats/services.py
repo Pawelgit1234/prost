@@ -172,6 +172,7 @@ async def quit_group_in_db(
     )
     await db.commit()
 
+    await db.refresh(group)
     await update_group_members_in_elastic(es, group)
 
 async def add_user_to_group_in_db(
@@ -203,6 +204,7 @@ async def add_user_to_group_in_db(
     db.add_all([chat_association, all_folder_assoc, group_folder_assoc])
     await db.commit()
 
+    await db.refresh(group)
     await update_group_members_in_elastic(es, group)
     return group
 
@@ -255,6 +257,7 @@ async def set_users_in_group(
 
     # --- remove users ---
     if to_remove:
+        # remove user-chat
         await db.execute(
             delete(UserChatAssociationModel).where(
                 UserChatAssociationModel.chat_id == group.id,
@@ -262,8 +265,21 @@ async def set_users_in_group(
             )
         )
 
+        # remove folder-chat
+        await db.execute(
+            delete(FolderChatAssociationModel).where(
+                FolderChatAssociationModel.chat_id == group.id,
+                FolderChatAssociationModel.folder_id.in_(
+                    select(FolderModel.id).where(
+                        FolderModel.user_id.in_(to_remove)
+                    )
+                )
+            )
+        )
+
     # --- add users ---
     if to_add:
+        # add user-chat
         await db.execute(
             insert(UserChatAssociationModel),
             [
@@ -272,7 +288,32 @@ async def set_users_in_group(
             ],
         )
 
+        # add folder-chat
+        result = await db.execute(
+            select(FolderModel.id, FolderModel.folder_type).where(
+                FolderModel.user_id.in_(to_add),
+                FolderModel.folder_type.in_(
+                    [FolderType.ALL, FolderType.GROUPS]
+                )
+            )
+        )
+
+        rows = result.all()
+
+        await db.execute(
+            insert(FolderChatAssociationModel),
+            [
+                {
+                    "folder_id": fid,
+                    "chat_id": group.id,
+                }
+                for fid, _ in rows
+            ],
+        )
+
     await db.commit()
+
+    await db.refresh(group)
     await update_group_members_in_elastic(es, group)
 
 async def set_chat_folder_in_db(
@@ -344,7 +385,10 @@ async def pin_chat_in_folder(
     return assoc.is_pinned
 
 async def add_chat_to_folder(
-    db: AsyncSession, user: UserModel, folder: FolderModel, chat: ChatModel
+    db: AsyncSession,
+    user: UserModel,
+    folder: FolderModel,
+    chat: ChatModel
 ) -> None:
     if not is_user_in_chat(user, chat) or folder.user_id != user.id:
         raise HTTPException(

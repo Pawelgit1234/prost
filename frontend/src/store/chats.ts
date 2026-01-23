@@ -70,6 +70,9 @@ export const useChatStore = defineStore('chats', {
       } catch (error) {
         console.error("Error quitting group: ", error)
       }
+
+      const userStore = useUserStore()
+      await userStore.fetchUsers()
     },
     async deleteChat(chatUuid: string) {
       try {
@@ -83,8 +86,19 @@ export const useChatStore = defineStore('chats', {
       } catch (error) {
         console.error("Error deleting chat:", error)
       }
+
+      const userStore = useUserStore()
+      await userStore.fetchUsers()
     },
     async addUserToGroup(group: ChatI, userUuids: string[]) {
+      const authStore = useAuthStore()
+      if (authStore.currentUser) {
+        userUuids.push(authStore.currentUser?.uuid)
+      } else {
+        console.error("Current user not found")
+        return
+      }
+
       try {
         const payload = { group_uuid: group.uuid, user_uuids: userUuids };
         const response = await axiosInstance.put('/chats/add_user', payload, {
@@ -105,6 +119,7 @@ export const useChatStore = defineStore('chats', {
     async joinGroup(group_uuid: string) {
       const authStore = useAuthStore()
       const userStore = useUserStore()
+      const folderStore = useFolderStore()
 
       if (!authStore.currentUser) {
           console.error("You was not added to group")
@@ -117,6 +132,7 @@ export const useChatStore = defineStore('chats', {
         this.chats.push(group)
 
         await userStore.fetchUsers()
+        await folderStore.fetchFolders()
       } catch (error) {
         console.error("Error adding you to group: ", error)
       }
@@ -124,6 +140,7 @@ export const useChatStore = defineStore('chats', {
     async createChat(username: string) {
       const authStore = useAuthStore()
       const userStore = useUserStore()
+      const folderStore = useFolderStore()
 
       if (!authStore.currentUser) {
           console.error("Chat was not created")
@@ -137,7 +154,9 @@ export const useChatStore = defineStore('chats', {
         });
         const chat = response.data as ChatI
         this.chats.push(chat)
+
         await userStore.fetchUsers()
+        await folderStore.fetchFolders()
         return chat
       } catch (error) {
         console.error("Error creating chat: ", error)

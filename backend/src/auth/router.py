@@ -12,7 +12,7 @@ from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
 
 from src.database import get_db, get_redis, get_es
-from src.utils import save_to_db, wrap_list_response
+from src.utils import save_to_db, wrap_list_response, get_object_or_404
 from src.dependencies import get_current_user, get_active_current_user
 from src.settings import HOST, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID, FRONTEND_HOST, \
     REDIS_CACHE_EXPIRE_SECONDS, REDIS_USERS_KEY
@@ -168,7 +168,10 @@ async def activate(
     return {'success': True}
 
 @router.post('/refresh')
-async def get_refresh_token(refresh_token: str | None = Cookie(default=None)):
+async def get_refresh_token(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    refresh_token: str | None = Cookie(default=None)
+):
     if refresh_token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -176,11 +179,15 @@ async def get_refresh_token(refresh_token: str | None = Cookie(default=None)):
         )
     
     token_data = decode_jwt_token(refresh_token)
+    user = await get_object_or_404(db, UserModel, UserModel.username == token_data.username,
+                                   detail="User not found")
 
     # new access and refresh token
-    access_token = create_access_token({'sub': token_data.username})
-    refresh_token = create_refresh_token({'sub': token_data.username})
-    return create_token_response(access_token, refresh_token)
+    access_token = create_access_token({'sub': user.username})
+    new_refresh = create_refresh_token({'sub': user.username})
+    user_dict = UserSchema.model_validate(user).model_dump(mode='json')
+
+    return create_token_response(access_token, new_refresh, user_dict)
 
 @router.post('/logout')
 async def logout(reponse: Response):

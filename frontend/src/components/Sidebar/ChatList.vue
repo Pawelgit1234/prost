@@ -186,13 +186,6 @@ watch(search, (value) => {
 })
 
 async function createChatOrJoinRequest(item: SearchItem) {
-  // manual tests
-
-
-
-
-
-
   if (item.is_open_for_messages) {
     if (item.chat_type === 'group') { // add to group
       await chatStore.joinGroup(item.uuid)
@@ -261,7 +254,14 @@ async function selectChatOrChooseMessage(item: SearchItem) {
       :class="['chat-item', { selected: item.uuid === selectedChatUuid }]"
       @click.left.prevent="selectChatOrChooseMessage(item)"
     >
-      <div class="chat-name">{{ userStore.getUserFromOneOfTheMembers(item.members || [])?.username }}</div>
+      <div
+        v-if="item.chat_type === 'normal'" class="chat-name">
+        {{ userStore.getUserFromOneOfTheMembers(item.members || [])?.username }}
+      </div>
+      <div
+        v-else-if="item.chat_type === 'group'" class="chat-name">
+        {{ item.name }}
+      </div>
     </div>
   </div>
 

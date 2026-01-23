@@ -2,7 +2,9 @@ import { defineStore } from 'pinia'
 import axiosInstance from '../api/axios'
 import type { ChatI } from './chats'
 
-export const protectedTypes = ['all', 'chats', 'groups', 'new']
+export const protectedTypes = ['all', 'chats', 'groups', 'new'] as const
+export type ProtectedFolderType = typeof protectedTypes[number]
+
 
 export interface FolderI {
   uuid: string

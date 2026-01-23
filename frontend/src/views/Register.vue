@@ -5,7 +5,6 @@ import type { AxiosError } from 'axios';
 import { useForm, useField } from "vee-validate";
 import * as yup from "yup";
 
-import pinia from '../store';
 import { useAuthStore } from '../store/auth';
 
 const schema = yup.object({
@@ -41,7 +40,7 @@ const { value: password } = useField<string>("password");
 const { value: confirmPassword } = useField<string>("confirmPassword");
 
 const errorMessage = ref("");
-const userStore = useAuthStore(pinia);
+const userStore = useAuthStore();
 const router = useRouter();
 
 // computed checks for password rules
