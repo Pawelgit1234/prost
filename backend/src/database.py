@@ -251,7 +251,7 @@ async def create_indices(es: AsyncElasticsearch):
                 **common_settings,
                 "mappings": {
                     "properties": {
-                        "text": {
+                        "content": {
                             "type": "text",
                             "fields": {
                                 "autocomplete": {
@@ -262,7 +262,7 @@ async def create_indices(es: AsyncElasticsearch):
                             }
                         },
                         "chat": {"type": "keyword"}, # chat uuid
-                        "members": {"type": "keyword"}, # users who see can see this msg
+                        "user": {"type": "keyword"}, # user uuid
                     }
                 }
             }

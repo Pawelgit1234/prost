@@ -12,6 +12,7 @@ from src.logger import setup_logging
 from src.database import create_indices, wait_for_elasticsearch, sync_db_to_elastic,\
     es, async_session
 from src.invitations.background import periodic_invitation_cleaner
+from src.messages.handlers import connection_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,7 +28,10 @@ async def lifespan(app: FastAPI):
 
     # invitation cleaner
     asyncio.create_task(periodic_invitation_cleaner()) # deletes old invitations
+
+    # pubsub
     yield
+    await connection_manager.close()
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(main_router)

@@ -77,6 +77,22 @@ async def get_chat_or_404(db: AsyncSession, chat_uuid: UUID) -> ChatModel:
         ]
     )
 
+async def get_chat_or_none(
+    db: AsyncSession,
+    chat_uuid: UUID,
+) -> ChatModel | None:
+    result = await db.execute(
+        select(ChatModel)
+        .where(ChatModel.uuid == chat_uuid)
+        .options(
+            selectinload(ChatModel.user_associations)
+            .selectinload(UserChatAssociationModel.user),
+            selectinload(ChatModel.folder_associations)
+            .selectinload(FolderChatAssociationModel.folder),
+        )
+    )
+    return result.scalar_one_or_none()
+
 async def create_chat_in_db(
     db: AsyncSession,
     current_user: UserModel,

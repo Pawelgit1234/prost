@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
 from src.chats.enums import ChatType
-from src.messages.schemas import MessageSchema
+from src.messages.schemas import SendMessageSchema
 
 class CreateChatSchema(BaseModel):
     chat_type: ChatType # says what type of chat it is: group or normal chat
@@ -28,7 +28,7 @@ class ChatSchema(BaseModel):
     is_visible: bool
     created_at: datetime
     updated_at: datetime
-    last_message: MessageSchema | None = Field(default=None) # optional
+    last_message: SendMessageSchema | None = Field(default=None) # optional
     user_uuids: list[UUID]
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

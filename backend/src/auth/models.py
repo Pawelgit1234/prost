@@ -9,7 +9,7 @@ from src.models import TimestampMixin, uuid_type
 if TYPE_CHECKING:
     from src.chats.models import UserChatAssociationModel
     from src.folders.models import FolderModel
-    from src.messages.models import MessageModel
+    from src.messages.models import MessageModel, ReadStatusModel
     from src.join_requests.models import JoinRequestModel
     from src.invitations.models import InvitationModel
 
@@ -31,8 +31,13 @@ class UserModel(Base, TimestampMixin):
     is_visible: Mapped[bool] = mapped_column(default=False) # search
     is_open_for_messages: Mapped[bool] = mapped_column(default=False) # False = needs a join request
 
-    messages: Mapped[list["MessageModel"]] = relationship(back_populates="user")
-    folders: Mapped[list["FolderModel"]] = relationship(back_populates="user")
+    messages: Mapped[list["MessageModel"]] = relationship(back_populates='user')
+    folders: Mapped[list["FolderModel"]] = relationship(
+        back_populates='user', cascade='all, delete-orphan'
+    )
+    read_statuses: Mapped[list["ReadStatusModel"]] = relationship(
+        back_populates='user', cascade='all, delete-orphan'
+    )
     sent_join_requests: Mapped[list["JoinRequestModel"]] = relationship(
         back_populates="sender_user", foreign_keys="[JoinRequestModel.sender_user_id]"
     )
