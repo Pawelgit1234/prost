@@ -9,23 +9,24 @@ import FolderList from '../components/Sidebar/FolderList.vue';
 import ChatList from '../components/Sidebar/ChatList.vue';
 import { useUserStore } from '../store/users';
 import { useSearchStore } from '../store/search';
+import { useWebSocketStore } from '../store/websocket';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
-const messageStore = useMessageStore()
 const userStore = useUserStore()
 const searchStore = useSearchStore()
+const ws = useWebSocketStore()
 
 onMounted(async () => {
   await Promise.all([
     folderStore.fetchFolders(),
     chatStore.fetchChats(),
     userStore.fetchUsers(),
-    searchStore.loadHistory()
+    searchStore.loadHistory(),
   ])
+  ws.connect()
 })
 
-function handleSendMessage() {}
 </script>
 
 <template>
@@ -48,9 +49,7 @@ function handleSendMessage() {}
 
     <div class="chat-window">
       <ChatWindow
-        :chatUuid="chatStore.selectedChatUuid"
-        :messages="messageStore.getMessagesByChat(chatStore.selectedChatUuid)"
-        @sendMessage="handleSendMessage"
+        :selectedChatUuid="chatStore.selectedChatUuid"
       />
     </div>
   </div>

@@ -53,8 +53,8 @@ class ConnectionManager:
                 await self.pubsub.unsubscribe(chat_uuid)
 
     async def _on_pubsub_message(self, message):
-        chat_uuid = UUID(message["channel"].decode())
-        data = message["data"].decode()
+        chat_uuid = UUID(message["channel"])
+        data = message["data"]
 
         sockets = self.chats.get(chat_uuid, set())
         for ws in sockets:

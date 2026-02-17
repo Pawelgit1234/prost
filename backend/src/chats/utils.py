@@ -11,7 +11,7 @@ from src.chats.models import ChatModel
 from src.chats.schemas import ChatSchema
 from src.chats.enums import ChatType
 from src.messages.models import MessageModel
-from src.messages.utils import message_model_to_schema
+from src.messages.utils import message_model_to_send_schema
 
 def group_and_message_model_to_schema(
     chat: ChatModel,
@@ -25,7 +25,7 @@ def group_and_message_model_to_schema(
         avatar=chat.avatar,
         is_open_for_messages=chat.is_open_for_messages,
         is_visible=chat.is_visible,
-        last_message=message_model_to_schema(last_message) if last_message is not None else None,
+        last_message=message_model_to_send_schema(last_message) if last_message is not None else None,
         created_at=chat.created_at,
         updated_at=chat.updated_at,
         user_uuids=[assoc.user.uuid for assoc in chat.user_associations]
@@ -52,7 +52,7 @@ def other_user_to_chat_schema(
         avatar=other_user.avatar,
         is_open_for_messages=other_user.is_open_for_messages,
         is_visible=other_user.is_visible,
-        last_message=message_model_to_schema(last_message) if last_message is not None else None,
+        last_message=message_model_to_send_schema(last_message) if last_message is not None else None,
         created_at=chat.created_at,
         updated_at=chat.updated_at,
         user_uuids=[assoc.user.uuid for assoc in chat.user_associations]

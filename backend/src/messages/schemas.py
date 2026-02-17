@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 class ReceiveMessageSchema(BaseModel):
     type: str 
@@ -10,7 +10,7 @@ class ReceiveMessageSchema(BaseModel):
     content: str = Field(max_length=5000)
 
 class SendMessageSchema(BaseModel):
-    message_uuid: UUID
+    uuid: UUID
     user_uuid: UUID # sender
     chat_uuid: UUID
     content: str

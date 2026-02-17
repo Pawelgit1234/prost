@@ -25,6 +25,7 @@ declare module 'vue' {
     Messenger: typeof import('./src/components/Messenger.vue')['default']
     ModalTextInput: typeof import('./src/components/common/ModalTextInput.vue')['default']
     PasswordInput: typeof import('./src/components/Inputs/PasswordInput.vue')['default']
+    ReadStatusesModal: typeof import('./src/components/common/ReadStatusesModal.vue')['default']
     ReplaceChatsModal: typeof import('./src/components/common/ReplaceChatsModal.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

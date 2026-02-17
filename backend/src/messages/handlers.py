@@ -49,15 +49,18 @@ async def new_message_handler(
     )
 
     await add_chat_to_new_folder_for_all(db, current_user, chat) 
-    await delete_cache_for_users(r, chat)
+    await delete_cache_for_users(r, chat, current_user)
 
     send_message_schema = SendMessageSchema(
-        message_uuid=message.uuid, user_uuid=current_user.uuid,
+        uuid=message.uuid, user_uuid=current_user.uuid,
         chat_uuid=chat.uuid, content=message.content,
         created_at=message.created_at, updated_at=message.updated_at
     )
-    outgoing_message: dict = send_message_schema.model_dump_json()
+    outgoing_message: dict = send_message_schema.model_dump(mode="json")
+    outgoing_message["type"] = "new_message"
     await connection_manager.broadcast_to_chat(chat.uuid, outgoing_message)
+
+    logger.info(f"Message was sent ({message.uuid})")
 
 @connection_manager.handler("read_message")
 async def read_message_handler(
@@ -87,7 +90,7 @@ async def read_message_handler(
     await remove_chat_from_new_folder(db, current_user, chat)
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
 
-    outgoing_message: dict = message_read_schema.model_dump_json()
+    outgoing_message: dict = message_read_schema.model_dump(mode="json")
     outgoing_message["user_uuid"] = str(current_user.uuid)
     await connection_manager.broadcast_to_chat(chat.uuid, outgoing_message)
 

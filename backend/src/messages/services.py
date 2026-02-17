@@ -26,21 +26,24 @@ async def get_message_or_none(
     )
     return result.scalar_one_or_none()
 
-async def get_all_message_schemas(
+async def get_all_messages(
     db: AsyncSession,
     user: UserModel,
     chat: ChatModel
-) -> list[MessageSchema]:
+) -> list[MessageModel]:
     
     ensure_user_in_chat_or_403(user, chat)
     
     messages = await get_all_objects(
         db, MessageModel,
         MessageModel.chat_id == chat.id,
-        options=[selectinload(MessageModel.read_statuses)]
+        options=[
+            selectinload(MessageModel.read_statuses)
+            .selectinload(ReadStatusModel.user)
+        ]
     )
 
-    итд
+    return messages
 
 async def get_read_status_or_none(
     db: AsyncSession,
@@ -86,7 +89,7 @@ async def create_message_in_db(
         chat=chat,
         message=message,
     )
-    db.add(statuses)
+    db.add_all(statuses)
 
     await db.commit()
     await db.refresh(message)
@@ -108,7 +111,7 @@ async def add_chat_to_new_folder_for_all(
         .where(
             UserChatAssociationModel.chat_id == chat.id,
             UserChatAssociationModel.user_id != sender_user.id,
-            FolderModel.type == FolderType.NEW,
+            FolderModel.folder_type == FolderType.NEW,
         )
     )
 

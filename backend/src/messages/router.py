@@ -6,16 +6,17 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from elasticsearch import AsyncElasticsearch
-from fastapi import APIRouter, WebSocket, Depends, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, Depends, WebSocketDisconnect, Query, status
 
 from src.settings import REDIS_MESSAGES_KEY, REDIS_CACHE_EXPIRE_SECONDS
 from src.database import get_db, get_redis, get_es
 from src.utils import wrap_list_response
-from src.dependencies import get_active_current_user
+from src.dependencies import get_active_current_user, get_active_user_from_token
 from src.auth.models import UserModel
-from src.chats.services import get_all_chats_with_last_message
+from src.chats.services import get_all_chats_with_last_message, get_chat_or_404
 from src.messages.handlers import connection_manager
-from src.messages.services import get_all_message_schemas
+from src.messages.services import get_all_messages
+from src.messages.utils import message_model_to_schema
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,17 @@ async def websocket_endpoint(
     r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     ws: WebSocket,
-    current_user: Annotated[UserModel, Depends(get_active_current_user)]
+    token: str = Query(...)
 ):
+    try:
+        current_user = await get_active_user_from_token(db, token)
+    except:
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    
     # accept websocket
     await connection_manager.connect_socket(ws)
-    logger.info("Websocket connection is established")
+    logger.info(f"Websocket ({current_user.uuid}) connection is established")
 
     # add to connection manager
     await connection_manager.add_user_socket_connection(current_user.uuid, ws)
@@ -59,7 +66,7 @@ async def websocket_endpoint(
                 await handler(
                     db=db, r=r, es=es, ws=ws,
                     current_user=current_user,
-                    incoming_message=incoming_message
+                    incomming_message=incoming_message
                 )
 
             except (json.JSONDecodeError, AttributeError) as excinfo:
@@ -77,7 +84,7 @@ async def websocket_endpoint(
             await connection_manager.remove_user_from_chat(chat.uuid, ws)
         
         # remove from connection manager
-        await connection_manager.remove_user(current_user.uuid, ws)
+        connection_manager.remove_user(current_user.uuid, ws)
 
 # no lazy loading
 @router.get('/messages/{chat_uuid}')
@@ -90,9 +97,11 @@ async def get_all_chat_messages(
     redis_key = REDIS_MESSAGES_KEY.format(chat_uuid)
     if data := await r.get(redis_key):
         return json.loads(data)
-
-    message_schemas = await get_all_message_schemas(db, current_user, chat_uuid)
-    messages = [chat.model_dump() for chat in chats_schemas]
+    
+    chat = await get_chat_or_404(db, chat_uuid)
+    messages = await get_all_messages(db, current_user, chat)
+    message_schemas = [message_model_to_schema(m) for m in messages]
+    messages = [m.model_dump() for m in message_schemas]
     data = wrap_list_response(messages)
 
     await r.set(

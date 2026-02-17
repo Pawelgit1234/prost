@@ -39,3 +39,23 @@ async def get_active_current_user(current_user: Annotated[UserModel, Depends(get
             detail='Inactive user'
         )
     return current_user
+
+async def get_active_user_from_token(
+    db: AsyncSession,
+    token: str
+) -> UserModel:
+
+    token_data = decode_jwt_token(token)
+
+    user = await get_object_or_404(
+        db,
+        UserModel,
+        UserModel.username == token_data.username,
+        detail="User not found",
+        options=[selectinload(UserModel.chat_associations)]
+    )
+
+    if not user.is_active:
+        raise Exception("Inactive")
+
+    return user

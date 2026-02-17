@@ -1,13 +1,28 @@
 import { defineStore } from 'pinia'
+import axiosInstance from '../api/axios'
+import { useUserStore } from './users'
+
+export interface MessageReadI {
+  type: string,
+  message_uuid: string,
+  chat_uuid: string,
+  user_uuid: string,
+}
+
+export interface ReadStatusI {
+  updated_at: string,
+  is_read: boolean,
+  user_uuid: string
+}
 
 export interface MessageI {
-  uuid: string
-  text: string
-  author: string
-  datetime: string
-  isMine: boolean
-  wasUpdated: boolean
-  chatUuid: string
+  uuid: string,
+  user_uuid: string,
+  chat_uuid: string,
+  content: string,
+  created_at: string,
+  updated_at: string,
+  read_statuses: ReadStatusI[]
 }
 
 export const useMessageStore = defineStore('messages', {
@@ -15,21 +30,48 @@ export const useMessageStore = defineStore('messages', {
     messages: [] as MessageI[]
   }),
   actions: {
-    addMessage(msg: MessageI) {
-      this.messages.push(msg)
-    },
-    updateMessage(uuid: string, text: string) {
-      const msg = this.messages.find(m => m.uuid === uuid)
-      if (msg) {
-        msg.text = text
-        msg.wasUpdated = true
-      }
-    },
     getMessagesByChat(chatUuid: string): MessageI[] {
-      return this.messages.filter(m => m.chatUuid === chatUuid)
+      return this.messages.filter(m => m.chat_uuid === chatUuid)
+    },
+    getMessageByUuid(messageUuid: string): MessageI | undefined {
+      return this.messages.find(m => m.uuid === messageUuid)
     },
     deleteChatMessages(chatUuid: string) {
-      this.messages = this.messages.filter(m => m.chatUuid === chatUuid);
+      this.messages = this.messages.filter(m => m.chat_uuid === chatUuid);
+    },
+    addMessage(message: MessageI) {
+      this.messages.push(message)
+
+      const userStore = useUserStore()
+      const users = userStore.getChatUsers(message.chat_uuid)
+
+      const read_statuses = users?.map(u => ({
+        updated_at: message.created_at,
+        is_read: false,
+        user_uuid: u.uuid
+      })) ?? []
+
+      message.read_statuses = read_statuses
+    },
+    readMessage(read: MessageReadI) {
+      const message = this.getMessageByUuid(read.message_uuid)
+      if (!message) return
+
+      const read_status = message.read_statuses.find(r => r.user_uuid === read.user_uuid)
+      if (!read_status) return
+
+      read_status.is_read = true
+    },
+    async fetchMessages(chatUuid: string) {
+      try {
+        const { data } = await axiosInstance.get(`/messages/${chatUuid}`)
+        this.messages = [
+          ...this.messages.filter(m => m.chat_uuid !== chatUuid),
+          ...data.items
+        ]
+      } catch (error) {
+        console.error("Error fetching messages:", error)
+      }
     }
   },
   persist: true

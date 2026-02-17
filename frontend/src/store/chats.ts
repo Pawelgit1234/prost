@@ -3,6 +3,7 @@ import axiosInstance from '../api/axios'
 import { useFolderStore, type FolderI } from './folders'
 import { useAuthStore } from './auth';
 import { useUserStore } from './users';
+import { useWebSocketStore } from './websocket';
 
 export interface ChatI {
   uuid: string
@@ -43,7 +44,7 @@ export const useChatStore = defineStore('chats', {
       this.chats.push(chat)
     },
     getChatByUuid(uuid: string) {
-      return this.chats.filter(c => c.uuid == uuid)
+      return this.chats.find(c => c.uuid == uuid)
     },
     getChatsByFolder(folder?: FolderI) {
       if (!folder) return []
@@ -67,6 +68,9 @@ export const useChatStore = defineStore('chats', {
         } else {
           console.error("Group was not quitted")
         }
+
+        const websocketStore = useWebSocketStore()
+        websocketStore.quitChat(groupUuid)
       } catch (error) {
         console.error("Error quitting group: ", error)
       }
@@ -83,6 +87,9 @@ export const useChatStore = defineStore('chats', {
         } else {
           console.error("Chat was not deleted")
         }
+
+        const websocketStore = useWebSocketStore()
+        websocketStore.quitChat(chatUuid)
       } catch (error) {
         console.error("Error deleting chat:", error)
       }
@@ -133,6 +140,10 @@ export const useChatStore = defineStore('chats', {
 
         await userStore.fetchUsers()
         await folderStore.fetchFolders()
+
+
+        const websocketStore = useWebSocketStore()
+        websocketStore.joinChat(group_uuid)
       } catch (error) {
         console.error("Error adding you to group: ", error)
       }
@@ -157,6 +168,10 @@ export const useChatStore = defineStore('chats', {
 
         await userStore.fetchUsers()
         await folderStore.fetchFolders()
+
+        const websocketStore = useWebSocketStore()
+        websocketStore.joinChat(chat.uuid)
+
         return chat
       } catch (error) {
         console.error("Error creating chat: ", error)

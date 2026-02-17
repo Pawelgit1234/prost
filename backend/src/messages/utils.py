@@ -4,15 +4,14 @@ from elasticsearch import AsyncElasticsearch
 from redis.asyncio import Redis
 
 from src.settings import ELASTIC_MESSAGES_INDEX_NAME, REDIS_FOLDERS_KEY
-from src.utils import invalidate_cache
 from src.messages.models import MessageModel, ReadStatusModel
-from src.messages.schemas import SendMessageSchema
+from src.messages.schemas import SendMessageSchema, MessageSchema, ReadStatusSchema
 from src.chats.models import ChatModel
 from src.auth.models import UserModel
 
-def message_model_to_schema(message: MessageModel) -> SendMessageSchema:
+def message_model_to_send_schema(message: MessageModel) -> SendMessageSchema:
     return SendMessageSchema(
-        message_uuid=message.uuid,
+        uuid=message.uuid,
         created_at=message.created_at,
         updated_at=message.updated_at,
         user_uuid=message.user_id,
@@ -20,7 +19,27 @@ def message_model_to_schema(message: MessageModel) -> SendMessageSchema:
         content=message.content
     )
 
-async def create_read_statuses_for_all_chat_users(
+def read_status_model_to_schema(read_status: ReadStatusModel) -> ReadStatusSchema:
+    return ReadStatusSchema(
+        updated_at=read_status.updated_at,
+        is_read=read_status.is_read,
+        user_uuid=read_status.user.uuid
+    )
+
+def message_model_to_schema(message: MessageModel) -> MessageSchema:
+    read_statuses = [read_status_model_to_schema(r) for r in message.read_statuses]
+
+    return MessageSchema(
+        uuid=message.uuid,
+        created_at=message.created_at,
+        updated_at=message.updated_at,
+        user_uuid=message.user.uuid,
+        chat_uuid=message.chat.uuid,
+        content=message.content,
+        read_statuses=read_statuses
+    )
+
+def create_read_statuses_for_all_chat_users(
     sender_user: UserModel,
     chat: ChatModel,
     message: MessageModel,

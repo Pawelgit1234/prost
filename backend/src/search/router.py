@@ -13,6 +13,8 @@ from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
 from src.auth.services import get_all_users_connected_by_normal_chat
 from src.search.utils import add_query_to_history, parse_elastic_response
+from src.chats.services import get_all_chats_with_last_message, get_chat_or_404
+from src.chats.utils import ensure_user_in_chat_or_403
 
 router = APIRouter(prefix='/search', tags=['search'])
 
@@ -31,6 +33,8 @@ async def search_global(
     existing_chat_partners_uuids = [u.uuid for u in await get_all_users_connected_by_normal_chat(db, current_user)]
     existing_chat_partners_uuids.append(current_user.uuid) # workaround: do not show you to yourself
 
+    allowed_chat_uuids = [str(c.uuid) for c, _ in await get_all_chats_with_last_message(db, current_user)]
+
     response = await es.search(
         index=f'{ELASTIC_USERS_INDEX_NAME},{ELASTIC_CHATS_INDEX_NAME},{ELASTIC_MESSAGES_INDEX_NAME}',
         body={
@@ -45,7 +49,7 @@ async def search_global(
                                 'first_name^2', 'first_name.autocomplete',
                                 'last_name^2', 'last_name.autocomplete',
                                 'description^0.5',
-                                'text', 'text.autocomplete',
+                                'content', 'content.autocomplete',
                             ],
                             "type": "best_fields",
                             "fuzziness": "AUTO"
@@ -93,7 +97,7 @@ async def search_global(
                                     "bool": {
                                         "must": [
                                             { "term": { "_index": ELASTIC_MESSAGES_INDEX_NAME } },
-                                            { "term": { "members": str(current_user.uuid) } }
+                                            { "terms": { "chat": allowed_chat_uuids } }
                                         ]
                                     }
                                 }
@@ -118,6 +122,7 @@ async def search_global(
 
 @router.get('/messages')
 async def search_messages(
+    db: Annotated[AsyncSession, Depends(get_db)],
     r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
@@ -125,6 +130,9 @@ async def search_messages(
     q: str = Query(..., min_length=1, max_length=100),
     page: int = Query(1, ge=1),
 ):
+    chat = await get_chat_or_404(db, chat_uuid)
+    ensure_user_in_chat_or_403(current_user, chat)
+
     await add_query_to_history(r, current_user.uuid, q)
 
     response = await es.search(
@@ -146,7 +154,6 @@ async def search_messages(
                         # Messages: only visible to participants
                         "bool": {
                             "must": [
-                                { "term": { "members": str(current_user.uuid) } },
                                 { "term": { "chat": chat_uuid } },
                             ]
                         }

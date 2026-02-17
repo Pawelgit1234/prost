@@ -1,47 +1,65 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
-import type { MessageI } from '../../store/messages';
-import MessageList from './MessageList.vue';
+import { ref, watch } from 'vue';
+import { useMessageStore, type MessageI } from '../../store/messages';
+import { useWebSocketStore } from '../../store/websocket';
+import { useAuthStore } from '../../store/auth';
+import Message from './Message.vue';
+import { useUserStore } from '../../store/users';
 
 const props = defineProps<{
-  chatUuid: string;
-  messages: MessageI[];
+  selectedChatUuid: string;
 }>();
 
-const emit = defineEmits<{
-  (e: 'sendMessage', msg: MessageI): void;
-}>();
+const websocketStore = useWebSocketStore()
+const messageStore = useMessageStore()
+const userStore = useUserStore()
+const authStore = useAuthStore()
+
+watch(
+  () => props.selectedChatUuid,
+  async (chatUuid) => {
+    if (!chatUuid) return
+
+    await messageStore.fetchMessages(chatUuid)
+  },
+  { immediate: true }
+)
 
 const newMessage = ref('');
-const messagesRef = ref<HTMLElement | null>(null);
 
-// Autoscroll down
-watch(() => props.messages.length, async () => {
-  await nextTick();
-  messagesRef.value?.scrollTo({ top: messagesRef.value.scrollHeight });
-});
+async function sendMessage() {
+  if (!authStore.currentUser?.uuid) return
+  if (newMessage.value.length == 0) return
 
-function sendMessage() {
-  if (!newMessage.value.trim()) return;
+  websocketStore.sendMessage(
+    props.selectedChatUuid, authStore.currentUser.uuid, newMessage.value
+  )
 
-  const msg: MessageI = {
-    chatUuid: props.chatUuid,
-    author: 'Me',
-    text: newMessage.value,
-    datetime: new Date().toLocaleTimeString().slice(0, 5),
-    isMine: true,
-    wasUpdated: false,
-    uuid: crypto.randomUUID(),
-  };
-
-  emit('sendMessage', msg);
-  newMessage.value = '';
+  newMessage.value = ''
 }
+
+const showStatuses = ref(false)
+const selectedMessage = ref<MessageI | null>(null)
+
+function openStatuses(msg: MessageI) {
+  selectedMessage.value = msg
+  showStatuses.value = true
+}
+
 </script>
 
 <template>
   <div class="chat-window-inner" ref="messagesRef">
-    <MessageList :messages="messages"/>
+
+    <div class="message-list">
+      <Message
+        v-for="msg in messageStore.getMessagesByChat(selectedChatUuid)"
+        :key="msg.uuid"
+        :message="msg"
+        @click.right.prevent="openStatuses(msg)"
+      />
+    </div>
+
     <div class="input">
       <input
         v-model="newMessage"
@@ -52,6 +70,13 @@ function sendMessage() {
       <button @click="sendMessage">Send</button>
     </div>
   </div>
+
+  <ReadStatusesModal
+    :visible="showStatuses"
+    :read-statuses="selectedMessage?.read_statuses ?? []"
+    :users="userStore.getChatUsers(selectedChatUuid)"
+    @close="showStatuses = false"
+  />
 </template>
 
 <style>
@@ -88,5 +113,13 @@ function sendMessage() {
 
 .input button:hover {
   background: #43a047;
+}
+
+.message-list {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 </style>
