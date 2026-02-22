@@ -254,8 +254,13 @@ async function selectChatOrChooseMessage(item: SearchItem) {
       :class="['chat-item', { selected: item.uuid === selectedChatUuid }]"
       @click.left.prevent="selectChatOrChooseMessage(item)"
     >
+      <div v-if="item.type === 'messages'">
+        <div class="chat-name">
+          {{ item.content }}
+        </div>
+      </div>
       <div
-        v-if="item.chat_type === 'normal'" class="chat-name">
+        v-else-if="item.chat_type === 'normal'" class="chat-name">
         {{ userStore.getUserFromOneOfTheMembers(item.members || [])?.username }}
       </div>
       <div
@@ -269,7 +274,10 @@ async function selectChatOrChooseMessage(item: SearchItem) {
     <div
       v-for="chat in pinned_chats"
       :key="chat.uuid"
-      :class="['chat-item', { selected: chat.uuid === selectedChatUuid }]"
+      :class="[
+        'chat-item', 
+        { selected: chat.uuid === selectedChatUuid, 'new-chat': folderStore.isChatInFolderByType(chat.uuid, 'new') }
+      ]"
       @click.left.prevent="selectChat(chat.uuid)"
       @click.right.prevent="openMenu($event, chat)"
     >
@@ -281,7 +289,10 @@ async function selectChatOrChooseMessage(item: SearchItem) {
     <div
       v-for="chat in unpinned_chats"
       :key="chat.uuid"
-      :class="['chat-item', { selected: chat.uuid === selectedChatUuid }]"
+      :class="[
+        'chat-item', 
+        { selected: chat.uuid === selectedChatUuid, 'new-chat': folderStore.isChatInFolderByType(chat.uuid, 'new') }
+      ]"
       @click.left.prevent="selectChat(chat.uuid)"
       @click.right.prevent="openMenu($event, chat)"
     >
@@ -409,4 +420,16 @@ async function selectChatOrChooseMessage(item: SearchItem) {
 
   caret-color: black;
 }
+
+.chat-last-message {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.new-chat {
+  background-color: #d3daff;
+}
 </style>
+

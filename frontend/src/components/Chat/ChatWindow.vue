@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { useMessageStore, type MessageI } from '../../store/messages';
 import { useWebSocketStore } from '../../store/websocket';
 import { useAuthStore } from '../../store/auth';
@@ -21,6 +21,10 @@ watch(
     if (!chatUuid) return
 
     await messageStore.fetchMessages(chatUuid)
+
+    websocketStore.readMessage(props.selectedChatUuid)
+
+    scrollToBottom()
   },
   { immediate: true }
 )
@@ -40,6 +44,15 @@ async function sendMessage() {
 
 const showStatuses = ref(false)
 const selectedMessage = ref<MessageI | null>(null)
+const messagesRef = ref<HTMLElement | null>(null)
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesRef.value) {
+      messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+    }
+  })
+}
 
 function openStatuses(msg: MessageI) {
   selectedMessage.value = msg
@@ -49,9 +62,9 @@ function openStatuses(msg: MessageI) {
 </script>
 
 <template>
-  <div class="chat-window-inner" ref="messagesRef">
+  <div class="chat-window-inner">
 
-    <div class="message-list">
+    <div class="message-list" ref="messagesRef">
       <Message
         v-for="msg in messageStore.getMessagesByChat(selectedChatUuid)"
         :key="msg.uuid"
@@ -74,7 +87,7 @@ function openStatuses(msg: MessageI) {
   <ReadStatusesModal
     :visible="showStatuses"
     :read-statuses="selectedMessage?.read_statuses ?? []"
-    :users="userStore.getChatUsers(selectedChatUuid)"
+    :users="[...(userStore.getChatUsers(selectedChatUuid) || []), authStore.currentUser]"
     @close="showStatuses = false"
   />
 </template>

@@ -17,12 +17,7 @@ class SendMessageSchema(BaseModel):
     created_at: datetime
     updated_at: datetime # if created_at == updated_at it was not updated
 
-class MessageReadSchema(BaseModel):
-    type: str 
-    message_uuid: UUID
-    chat_uuid: UUID
-    
-class JoinChatSchema(BaseModel):
+class ChatActionSchema(BaseModel):
     type: str 
     chat_uuid: UUID
 

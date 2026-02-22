@@ -12,9 +12,9 @@ from src.chats.services import get_chat_or_none
 from src.chats.utils import is_user_in_chat
 from src.messages.connection_manager import ConnectionManager
 from src.messages.schemas import ReceiveMessageSchema, SendMessageSchema, \
-    MessageReadSchema, JoinChatSchema
+    ChatActionSchema, ChatActionSchema
 from src.messages.services import create_message_in_db, add_chat_to_new_folder_for_all, \
-    get_read_status_or_none, read_message, remove_chat_from_new_folder
+    mark_chat_read, remove_chat_from_new_folder
 from src.messages.utils import add_message_to_elastic, delete_cache_for_users
 
 logger = logging.getLogger(__name__)
@@ -71,13 +71,7 @@ async def read_message_handler(
     incomming_message: dict,
     **kwargs,
 ):
-    message_read_schema = MessageReadSchema(**incomming_message)
-    read_status = await get_read_status_or_none(
-        db, current_user.uuid, message_read_schema.message_uuid
-    )
-    if not read_status:
-        await connection_manager.send_error("Read status not found", ws)
-        return
+    message_read_schema = ChatActionSchema(**incomming_message)
 
     # checks if chat exists
     chat = await get_chat_or_none(db, message_read_schema.chat_uuid)
@@ -85,7 +79,7 @@ async def read_message_handler(
         await connection_manager.send_error("Chat not found", ws)
         return
 
-    await read_message(db, current_user, chat, read_status)
+    await mark_chat_read(db, current_user, chat)
 
     await remove_chat_from_new_folder(db, current_user, chat)
     await invalidate_cache(r, REDIS_FOLDERS_KEY, current_user.uuid)
@@ -93,6 +87,8 @@ async def read_message_handler(
     outgoing_message: dict = message_read_schema.model_dump(mode="json")
     outgoing_message["user_uuid"] = str(current_user.uuid)
     await connection_manager.broadcast_to_chat(chat.uuid, outgoing_message)
+
+    logger.info(f"Messages were read ({current_user.uuid})")
 
 @connection_manager.handler("join_chat")
 async def join_chat_handler(
@@ -103,7 +99,7 @@ async def join_chat_handler(
     **kwargs,
 ):
     """ Updates websockets connected to chat. E.g. user joins a new chat. """
-    join_chat_schema = JoinChatSchema(**incomming_message)
+    join_chat_schema = ChatActionSchema(**incomming_message)
     
     chat = await get_chat_or_none(db, join_chat_schema.chat_uuid)
     if not chat:
@@ -123,7 +119,7 @@ async def quit_chat_handler(
     incomming_message: dict,
     **kwargs,
 ):
-    join_chat_schema = JoinChatSchema(**incomming_message)
+    join_chat_schema = ChatActionSchema(**incomming_message)
     
     # no checks needed
     

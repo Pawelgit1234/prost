@@ -50,6 +50,10 @@ export const useChatStore = defineStore('chats', {
       if (!folder) return []
       return this.chats.filter(c => folder.chat_uuids.includes(c.uuid))
     },
+    changeLastMessage(chatUuid: string, lastMessage: string) {
+      const chat = this.getChatByUuid(chatUuid)
+      if (chat) chat.last_message = lastMessage
+    },
     async fetchChats() {
       try {
         const response = await axiosInstance.get("/chats")

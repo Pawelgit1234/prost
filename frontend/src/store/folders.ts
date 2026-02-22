@@ -5,7 +5,6 @@ import type { ChatI } from './chats'
 export const protectedTypes = ['all', 'chats', 'groups', 'new'] as const
 export type ProtectedFolderType = typeof protectedTypes[number]
 
-
 export interface FolderI {
   uuid: string
   folder_type: string
@@ -146,6 +145,26 @@ export const useFolderStore = defineStore('folders', {
         console.error("Error updating chat folders: ", error)
       }
     },
+    removeChatFromFolderByUuid(folderUuid: string, chatUuid: string) {
+      const folder = this.folders.find(f => f.uuid = folderUuid)
+      if (!folder) return
+
+      folder.chat_uuids = folder.chat_uuids.filter(u => u !== chatUuid)
+      folder.pinned_chats = folder.pinned_chats.filter(u => u !== chatUuid)
+    },
+    addChatByFolderByType(folderType: ProtectedFolderType, chatUuid: string) {
+      const folder = this.folders.find(f => f.folder_type == folderType)
+      if (!folder) return
+
+      folder.chat_uuids.push(chatUuid)
+    },
+    removeChatFromFolderByType(folderType: ProtectedFolderType, chatUuid: string) {
+      const folder = this.folders.find(f => f.folder_type == folderType)
+      if (!folder) return
+
+      folder.chat_uuids = folder.chat_uuids.filter(u => u !== chatUuid)
+      folder.pinned_chats = folder.pinned_chats.filter(u => u !== chatUuid)
+    },
     async handlePin(folderUuid: string, chatUuid: string) {
       try {
         const response = await axiosInstance.put(`/chats/${chatUuid}/folders/${folderUuid}/pin`);
@@ -176,6 +195,12 @@ export const useFolderStore = defineStore('folders', {
         folder.chat_uuids = folder.chat_uuids.filter((c) => c !== chatUuid)
         folder.pinned_chats = folder.pinned_chats.filter((c) => c !== chatUuid)
       })
+    },
+    isChatInFolderByType(chatUuid: string, folderType: ProtectedFolderType) {
+      const folder = this.folders.find(f => f.folder_type == folderType)
+      if (!folder) return
+
+      return folder.chat_uuids.includes(chatUuid)
     }
   },
   persist: true

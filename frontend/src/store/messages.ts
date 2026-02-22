@@ -4,7 +4,6 @@ import { useUserStore } from './users'
 
 export interface MessageReadI {
   type: string,
-  message_uuid: string,
   chat_uuid: string,
   user_uuid: string,
 }
@@ -54,13 +53,15 @@ export const useMessageStore = defineStore('messages', {
       message.read_statuses = read_statuses
     },
     readMessage(read: MessageReadI) {
-      const message = this.getMessageByUuid(read.message_uuid)
-      if (!message) return
+      for (const m of this.messages) {
+        if (m.chat_uuid !== read.chat_uuid) continue
 
-      const read_status = message.read_statuses.find(r => r.user_uuid === read.user_uuid)
-      if (!read_status) return
+        const status = m.read_statuses.find(
+          r => r.user_uuid === read.user_uuid
+        )
 
-      read_status.is_read = true
+        if (status) status.is_read = true
+      }
     },
     async fetchMessages(chatUuid: string) {
       try {

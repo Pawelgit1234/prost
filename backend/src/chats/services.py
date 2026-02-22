@@ -41,7 +41,7 @@ async def get_all_chats_with_last_message(
     stmt = (
         select(
             ChatModel,
-            LastMessage
+            LastMessage.content
         )
         .join(UserChatAssociationModel, ChatModel.id == UserChatAssociationModel.chat_id)
         .outerjoin(LastMessage, LastMessage.id == last_message_subq)

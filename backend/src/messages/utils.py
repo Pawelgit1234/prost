@@ -5,19 +5,9 @@ from redis.asyncio import Redis
 
 from src.settings import ELASTIC_MESSAGES_INDEX_NAME, REDIS_FOLDERS_KEY
 from src.messages.models import MessageModel, ReadStatusModel
-from src.messages.schemas import SendMessageSchema, MessageSchema, ReadStatusSchema
+from src.messages.schemas import MessageSchema, ReadStatusSchema
 from src.chats.models import ChatModel
 from src.auth.models import UserModel
-
-def message_model_to_send_schema(message: MessageModel) -> SendMessageSchema:
-    return SendMessageSchema(
-        uuid=message.uuid,
-        created_at=message.created_at,
-        updated_at=message.updated_at,
-        user_uuid=message.user_id,
-        chat_uuid=message.chat_id,
-        content=message.content
-    )
 
 def read_status_model_to_schema(read_status: ReadStatusModel) -> ReadStatusSchema:
     return ReadStatusSchema(

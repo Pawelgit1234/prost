@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { useMessageStore } from './messages'
 import { useAuthStore } from './auth'
+import { useFolderStore } from './folders'
+import { useChatStore } from './chats'
 
 export const useWebSocketStore = defineStore('ws', {
   state: () => ({
@@ -38,15 +40,25 @@ export const useWebSocketStore = defineStore('ws', {
     handleMessage(raw: string) {
       const data = JSON.parse(raw)
       const messageStore = useMessageStore()
+      const folderStore = useFolderStore()
+      const chatStorage = useChatStore()
+      const authStorage = useAuthStore()
 
       switch (data.type) {
 
         case "new_message":
           messageStore.addMessage(data)
+          chatStorage.changeLastMessage(data.chat_uuid, data.content)
+
+          if (data.user_uuid !== authStorage.currentUser?.uuid) {
+            this.readMessage(data.chat_uuid)
+            folderStore.addChatByFolderByType("new", data.chat_uuid)
+          }
           break
 
         case "read_message":
           messageStore.readMessage(data)
+          folderStore.removeChatFromFolderByType("new", data.chat_uuid)
           break
 
         default:
@@ -55,10 +67,8 @@ export const useWebSocketStore = defineStore('ws', {
     },
     send(data: any) {
       if (!this.socket || !this.connected) return
-
       this.socket.send(JSON.stringify(data))
     },
-   
     sendMessage(chatUuid: string, userUuid: string, content: string) {
       this.send({
         type: "new_message",
@@ -67,10 +77,9 @@ export const useWebSocketStore = defineStore('ws', {
         content
       })
     },
-    readMessage(chatUuid: string, messageUuid: string) {
+    readMessage(chatUuid: string) {
       this.send({
         type: "read_message",
-        message_uuid: messageUuid,
         chat_uuid: chatUuid,
       })
     },

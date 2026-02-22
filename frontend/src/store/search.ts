@@ -24,7 +24,7 @@ export interface SearchItem {
   description?: string;
 
   // Messages
-  text?: string;
+  content?: string;
   chat?: string; // chat uuid for message
 }
 

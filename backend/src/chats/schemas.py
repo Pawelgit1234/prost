@@ -28,7 +28,7 @@ class ChatSchema(BaseModel):
     is_visible: bool
     created_at: datetime
     updated_at: datetime
-    last_message: SendMessageSchema | None = Field(default=None) # optional
+    last_message: str | None = Field(default=None) # optional
     user_uuids: list[UUID]
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

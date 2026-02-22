@@ -1,8 +1,7 @@
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, insert, exists, and_, delete
+from sqlalchemy import select, insert, exists, and_, delete, update
 from sqlalchemy.orm import selectinload
 
 from src.utils import get_all_objects
@@ -12,7 +11,6 @@ from src.chats.utils import is_user_in_chat, ensure_user_in_chat_or_403
 from src.folders.models import FolderChatAssociationModel, FolderModel
 from src.folders.enums import FolderType
 from src.messages.models import MessageModel, ReadStatusModel
-from src.messages.schemas import MessageSchema
 from src.messages.utils import create_read_statuses_for_all_chat_users
 
 async def get_message_or_none(
@@ -145,7 +143,7 @@ async def remove_chat_from_new_folder(
         FolderChatAssociationModel.folder_id.in_(
             select(FolderModel.id).where(
                 FolderModel.user_id == user.id,
-                FolderModel.type == FolderType.NEW,
+                FolderModel.folder_type == FolderType.NEW,
             )
         )
     )
@@ -153,15 +151,25 @@ async def remove_chat_from_new_folder(
     await db.execute(stmt)
     await db.commit()
 
-async def read_message(
+async def mark_chat_read(
     db: AsyncSession,
     user: UserModel,
     chat: ChatModel,
-    read_status: ReadStatusModel
 ) -> None:
-    
-    if not is_user_in_chat(user, chat):
-        return None
-    
-    read_status.is_read = True
+    await db.execute(
+        update(ReadStatusModel)
+        .where(
+            ReadStatusModel.user_id == user.id,
+            ReadStatusModel.is_read == False,
+            ReadStatusModel.message_id.in_(
+                select(MessageModel.id)
+                .where(MessageModel.chat_id == chat.id)
+            )
+        )
+        .values(
+            is_read=True
+        )
+        .execution_options(synchronize_session=False)
+    )
     await db.commit()
+    
