@@ -48,3 +48,11 @@ SENDER_EMAIL = os.environ['SENDER_EMAIL']
 SENDER_EMAIL_PASSWORD = os.environ['SENDER_EMAIL_PASSWORD']
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
+
+S3_BUCKET = os.environ['S3_BUCKET']
+S3_ENDPOINT = os.environ['S3_ENDPOINT']
+MINIO_ROOT_USER = os.environ['MINIO_ROOT_USER']
+MINIO_ROOT_PASSWORD = os.environ['MINIO_ROOT_PASSWORD']
+
+MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5 MB
+ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]

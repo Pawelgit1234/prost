@@ -5,12 +5,15 @@ import { useWebSocketStore } from '../../store/websocket';
 import { useAuthStore } from '../../store/auth';
 import Message from './Message.vue';
 import { useUserStore } from '../../store/users';
+import { useChatStore } from '../../store/chats';
 
 const props = defineProps<{
-  selectedChatUuid: string;
+  selectedChatUuid: string
+  messageToScroll: string | null
 }>();
 
 const websocketStore = useWebSocketStore()
+const chatStore = useChatStore()
 const messageStore = useMessageStore()
 const userStore = useUserStore()
 const authStore = useAuthStore()
@@ -21,12 +24,32 @@ watch(
     if (!chatUuid) return
 
     await messageStore.fetchMessages(chatUuid)
-
-    websocketStore.readMessage(props.selectedChatUuid)
+    websocketStore.readMessage(chatUuid)
 
     scrollToBottom()
   },
   { immediate: true }
+)
+
+watch(
+  () => props.messageToScroll,
+  async (messageUuid) => {
+    if (!messageUuid) return
+
+    const message = messageStore.getMessageByUuid(messageUuid)
+    if (message) {
+      chatStore.selectChat(message.chat_uuid)
+      await messageStore.fetchMessages(message?.chat_uuid)
+      websocketStore.readMessage(message?.chat_uuid)
+    }
+
+    await nextTick()
+
+    const el = document.getElementById(`message-${messageUuid}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
 )
 
 const newMessage = ref('');

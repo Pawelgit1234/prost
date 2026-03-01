@@ -48,7 +48,7 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div class="message-row" :class="{ mine: isMine }">
+  <div :id="`message-${message.uuid}`" class="message-row" :class="{ mine: isMine }">
     <div class="message-bubble" :class="{ mine: isMine }">
       <div class="content">
         {{ message.content }}

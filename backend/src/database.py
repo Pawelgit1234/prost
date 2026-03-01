@@ -65,6 +65,7 @@ async def sync_db_to_elastic(db: AsyncSession, es: AsyncElasticsearch) -> None:
     from src.auth.models import UserModel
     from src.chats.models import ChatModel, UserChatAssociationModel
     from src.chats.enums import ChatType
+    from src.messages.models import MessageModel
     from src.chats.utils import get_group_users_uuids
 
     logger.info("Starting full synchronization...")
@@ -126,7 +127,32 @@ async def sync_db_to_elastic(db: AsyncSession, es: AsyncElasticsearch) -> None:
         await async_bulk(es, chat_actions)
         logger.info(f"Synced {len(chats)} chats.")
 
-    # TODO: Message sync
+    result = await db.execute(
+        select(MessageModel)
+        .options(
+            selectinload(MessageModel.user),
+            selectinload(MessageModel.chat),
+        )
+    )
+
+    messages = result.scalars().all()
+
+    if messages:
+        message_actions = [
+            {
+                "_index": ELASTIC_MESSAGES_INDEX_NAME,
+                "_id": str(message.uuid),
+                "_source": {
+                    "content": message.content,
+                    "chat": str(message.chat.uuid),
+                    "user": str(message.user.uuid),
+                }
+            }
+            for message in messages
+        ]
+
+        await async_bulk(es, message_actions)
+        logger.info(f"Synced {len(messages)} messages.")
 
     logger.info("Full synchronization complete!")
 

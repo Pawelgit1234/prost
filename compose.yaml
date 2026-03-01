@@ -14,6 +14,10 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_BUCKET=${S3_BUCKET}
     ports:
       - 8000:8000
     volumes:
@@ -71,7 +75,22 @@ services:
       - esdata:/usr/share/elasticsearch/data
     restart: always
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: always
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    ports:
+      - 9000:9000   # S3 API
+      - 9001:9001   # Web UI
+    volumes:
+      - minio_data:/data
+
 volumes:
   pgdata:
   pgadmin_data:
   esdata:
+  minio_data:

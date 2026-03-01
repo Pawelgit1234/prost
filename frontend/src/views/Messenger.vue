@@ -3,8 +3,7 @@ import { useFolderStore } from '../store/folders';
 import { useChatStore } from '../store/chats';
 
 import ChatWindow from '../components/Chat/ChatWindow.vue';
-import { onMounted } from 'vue';
-import { useMessageStore } from '../store/messages';
+import { onMounted, ref } from 'vue';
 import FolderList from '../components/Sidebar/FolderList.vue';
 import ChatList from '../components/Sidebar/ChatList.vue';
 import { useUserStore } from '../store/users';
@@ -27,6 +26,12 @@ onMounted(async () => {
   ws.connect()
 })
 
+const messageToScroll = ref<string | null>(null)
+
+function handleChooseMessage(messageUuid: string) {
+  messageToScroll.value = messageUuid
+}
+
 </script>
 
 <template>
@@ -44,12 +49,14 @@ onMounted(async () => {
         :chats="chatStore.chatsOfSelectedFolder"
         :selectedChatUuid="chatStore.selectedChatUuid"
         @update:selectedChat="chatStore.selectChat"
+        @choosedMessage="handleChooseMessage"
       />
     </div>
 
     <div class="chat-window">
       <ChatWindow
         :selectedChatUuid="chatStore.selectedChatUuid"
+        :messageToScroll="messageToScroll"
       />
     </div>
   </div>

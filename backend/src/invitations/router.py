@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from elasticsearch import AsyncElasticsearch
 
-from src.settings import HOST, REDIS_CACHE_EXPIRE_SECONDS, REDIS_USER_INVITATION_KEY,\
+from src.settings import REDIS_CACHE_EXPIRE_SECONDS, REDIS_USER_INVITATION_KEY,\
     REDIS_GROUP_INVITATION_KEY
 from src.database import get_db, get_redis, get_es
 from src.dependencies import get_active_current_user

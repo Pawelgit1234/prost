@@ -7,6 +7,7 @@ import src.search.router
 import src.join_requests.router
 import src.invitations.router
 import src.messages.router
+import src.config.router
 
 main_router = APIRouter(prefix='/api')
 main_router.include_router(src.auth.router.router)
@@ -16,3 +17,4 @@ main_router.include_router(src.invitations.router.router)
 main_router.include_router(src.folders.router.router)
 main_router.include_router(src.search.router.router)
 main_router.include_router(src.messages.router.router)
+main_router.include_router(src.config.router.router)
