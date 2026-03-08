@@ -1,9 +1,12 @@
 from contextlib import asynccontextmanager
+import json
+
 from fastapi import UploadFile
 from aiobotocore.session import get_session
 from botocore.exceptions import ClientError
 
-from src.settings import S3_BUCKET, S3_ENDPOINT, MINIO_ROOT_PASSWORD, MINIO_ROOT_USER
+from src.settings import S3_BUCKET, S3_ENDPOINT, MINIO_ROOT_PASSWORD, MINIO_ROOT_USER, \
+    S3_GLOBAL_ENDPOINT, PUBLIC_READ_POLICY
 
 class S3Client:
     def __init__(
@@ -34,6 +37,11 @@ class S3Client:
             except ClientError:
                 await client.create_bucket(Bucket=self.bucket_name)
 
+                await client.put_bucket_policy(
+                    Bucket=self.bucket_name,
+                    Policy=json.dumps(PUBLIC_READ_POLICY),
+                )
+
     async def upload_file(
         self,
         file: UploadFile,
@@ -49,7 +57,7 @@ class S3Client:
                 ContentType=file.content_type,
             )
 
-        return f"{S3_ENDPOINT}/{self.bucket_name}/{object_name}"
+        return f"{S3_GLOBAL_ENDPOINT}/{self.bucket_name}/{object_name}"
 
 
 s3 = S3Client(

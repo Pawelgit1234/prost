@@ -51,8 +51,20 @@ SMTP_PORT = 587
 
 S3_BUCKET = os.environ['S3_BUCKET']
 S3_ENDPOINT = os.environ['S3_ENDPOINT']
+S3_GLOBAL_ENDPOINT = os.environ['S3_GLOBAL_ENDPOINT']
 MINIO_ROOT_USER = os.environ['MINIO_ROOT_USER']
 MINIO_ROOT_PASSWORD = os.environ['MINIO_ROOT_PASSWORD']
+PUBLIC_READ_POLICY = {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": ["s3:GetObject"],
+            "Resource": [f"arn:aws:s3:::{S3_BUCKET}/*"],
+        }
+    ],
+}
 
 MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5 MB
 ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]

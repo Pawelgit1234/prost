@@ -20,6 +20,16 @@ export interface UserI {
   updated_at: string
 }
 
+export interface UserConfigI {
+  first_name: string
+  last_name: string
+  username: string
+  description: string | null
+  is_visible: boolean,
+  is_open_for_messages: boolean,
+  avatar_url: string | null,
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     accessToken: null as string | null, // refreshToken in httponly
@@ -136,7 +146,27 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.log("Error during Login with Google: ", error);
       }
-    }
+    },
+    async saveConfig(config: UserConfigI) {
+
+    },
+    async saveAvatar(file: File) {
+      console.log('hello')
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const { data } = await axiosInstance.post(
+        '/config/avatar',
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      )
+
+      if (this.currentUser) {
+        this.currentUser.avatar = data.avatar_url
+      }
+    },
   },
   persist: {
     pick: ['currentUser', 'isLoggedIn'] // access_token only in memory

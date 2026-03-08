@@ -4,9 +4,11 @@ import { ref } from 'vue';
 import { protectedTypes, useFolderStore, type FolderI } from '../../store/folders';
 import { useChatStore, type ChatI } from '../../store/chats';
 import SearchSelectModal from '../common/SearchSelectModal.vue';
+import { useAuthStore, type UserConfigI } from '../../store/auth';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
+const authStore = useAuthStore()
 
 const props = defineProps<{
     folders: FolderI[];
@@ -98,9 +100,41 @@ async function onDragEnd() {
 
   await folderStore.updateOrder()
 }
+
+// Config
+const isProfileOpen = ref(false)
+async function onSaveProfile(config: UserConfigI) {
+  await authStore.saveConfig(config)
+  isProfileOpen.value = false
+}
+
+async function onUploadAvatar(file: File) {
+  await authStore.saveAvatar(file)
+  isProfileOpen.value = false
+}
 </script>
 
 <template>
+  <button @click="" class="icon-btn">
+    <i class="bi bi-qr-code"></i>
+  </button>
+
+  <button @click="" class="icon-btn">
+    <i class="bi bi-envelope"></i>
+  </button>
+
+  <button @click="isProfileOpen = true" class="icon-btn">
+    <i class="bi bi-list"></i>
+  </button>
+
+  <ProfileConfigModal
+    :visible="isProfileOpen"
+    :user="authStore.currentUser!"
+    @close="isProfileOpen = false"
+    @save="onSaveProfile"
+    @avatar="onUploadAvatar"
+  />
+
   <draggable
     v-model="folderStore.folders"
     item-key="uuid"
@@ -223,5 +257,19 @@ async function onDragEnd() {
 
 .dragging {
   opacity: 0.4;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 14px;
+  color: #000000;
+  transition: color 0.2s;
+}
+
+.icon-btn:hover {
+  color: gray;
 }
 </style>
