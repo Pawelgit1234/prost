@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 class UserConfigSchema(BaseModel):
@@ -15,3 +17,5 @@ class GroupConfigSchema(BaseModel):
     is_open_for_messages: bool
     is_visible: bool
     avatar_url: str | None = Field(default=None)
+
+    uuid: UUID

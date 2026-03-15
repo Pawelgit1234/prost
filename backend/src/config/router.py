@@ -4,52 +4,57 @@ import logging
 from fastapi import APIRouter, Depends, File, UploadFile
 from elasticsearch import AsyncElasticsearch
 from sqlalchemy.ext.asyncio import AsyncSession
-from redis.asyncio import Redis
 
-from src.database import get_db, get_redis, get_es
+from src.settings import ELASTIC_USERS_INDEX_NAME
+from src.database import get_db, get_es
 from src.utils import validate_avatar
 from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
 from src.s3client import s3
+from src.chats.services import get_chat_or_404
 from src.config.schemas import UserConfigSchema, GroupConfigSchema
+from src.config.services import update_user_config_in_db, update_user_config_in_elastic, \
+    update_group_config_in_db, update_group_config_in_elastic
     
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/config', tags=['config'])
 
-@router.post('/user')
+@router.put('/user')
 async def set_user_config(
     db: Annotated[AsyncSession, Depends(get_db)],
-    r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     user_config: UserConfigSchema
 ):
-    current_user.first_name = user_config.first_name
-    current_user.last_name = user_config.last_name
-    current_user.username = user_config.username
-    current_user.description = user_config.description
-    current_user.is_visible = user_config.is_visible
-    current_user.is_open_for_messages = user_config.is_open_for_messages
-    current_user.avatar = user_config.avatar_url
-    await db.commit()
+    old_username = current_user.username
+
+    await update_user_config_in_db(db, current_user, user_config)
+    await update_user_config_in_elastic(es, user_config, old_username, current_user.uuid)
+
+    logger.info(f"User {current_user.uuid} changed his settings")
 
     return {'success': True}
 
-@router.post('/group')
+@router.put('/group')
 async def set_group_config(
     db: Annotated[AsyncSession, Depends(get_db)],
-    r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     group_config: GroupConfigSchema
 ):
+    group = await get_chat_or_404(db, group_config.group_uuid)
+
+    await update_group_config_in_db(db, group, current_user, group_config)
+    await update_group_config_in_elastic(es, group_config)
+
+    logger.info(f"Group settings {current_user.uuid} were changed by user {current_user.uuid}")
+
     return {'success': True}
 
 @router.post('/avatar')
 async def upload_avatar(
     db: Annotated[AsyncSession, Depends(get_db)],
-    r: Annotated[Redis, Depends(get_redis)],
     es: Annotated[AsyncElasticsearch, Depends(get_es)],
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     file: UploadFile = File(...)
@@ -57,9 +62,14 @@ async def upload_avatar(
     object_name = validate_avatar(file)
     url = await s3.upload_file(file, object_name)
 
-    # TODO: elastic and redis
     current_user.avatar = url
     await db.commit()
+
+    await es.update(
+        index=ELASTIC_USERS_INDEX_NAME,
+        id=str(current_user.uuid),
+        doc={"avatar": url}
+    )
 
     logger.info(f'New avatar {current_user.uuid} {url}')
 

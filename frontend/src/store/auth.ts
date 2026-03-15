@@ -148,10 +148,30 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     async saveConfig(config: UserConfigI) {
+      try {
+        const response = await axiosInstance.put('/config/user', config, {
+          headers: { 'Accept': 'application/json' },
+        });
 
+        if (!response.data.success) {
+          console.error("Config could not be setted")
+          return
+        }
+
+        if (this.currentUser) {
+          this.currentUser.first_name = config.first_name
+          this.currentUser.last_name = config.last_name
+          this.currentUser.username = config.username
+          this.currentUser.description = config.description
+          this.currentUser.is_visible = config.is_visible
+          this.currentUser.is_open_for_messages = config.is_open_for_messages
+          this.currentUser.avatar = config.avatar_url
+        }
+      } catch (error) {
+        console.error("Error setting user config: ", error)
+      }
     },
     async saveAvatar(file: File) {
-      console.log('hello')
       const formData = new FormData()
       formData.append('file', file)
 

@@ -198,6 +198,16 @@ async def create_indices(es: AsyncElasticsearch):
                                 }
                             }
                         },
+                        "user_names": { # only for normal chats
+                            "type": "text",
+                            "fields": {
+                                "autocomplete": {
+                                    "type": "text",
+                                    "analyzer": "autocomplete",
+                                    "search_analyzer": "standard"
+                                }
+                            }
+                        },
                         "description": {"type": "text"},
                         "chat_type": {"type": "keyword"},
                         "members": {"type": "keyword"}, # users in chat
@@ -239,16 +249,6 @@ async def create_indices(es: AsyncElasticsearch):
                             }
                         },
                         "username": {
-                            "type": "text",
-                            "fields": {
-                                "autocomplete": {
-                                    "type": "text",
-                                    "analyzer": "autocomplete",
-                                    "search_analyzer": "standard"
-                                }
-                            }
-                        },
-                        "user_names": { # only for normal chats
                             "type": "text",
                             "fields": {
                                 "autocomplete": {
