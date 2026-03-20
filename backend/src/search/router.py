@@ -13,8 +13,7 @@ from src.dependencies import get_active_current_user
 from src.auth.models import UserModel
 from src.auth.services import get_all_users_connected_by_normal_chat
 from src.search.utils import add_query_to_history, parse_elastic_response
-from src.chats.services import get_all_chats_with_last_message, get_chat_or_404
-from src.chats.utils import ensure_user_in_chat_or_403
+from src.chats.services import get_all_chats_with_last_message
 
 router = APIRouter(prefix='/search', tags=['search'])
 
@@ -120,59 +119,59 @@ async def search_global(
         "items": items
     }
 
-@router.get('/messages')
-async def search_messages(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    r: Annotated[Redis, Depends(get_redis)],
-    es: Annotated[AsyncElasticsearch, Depends(get_es)],
-    current_user: Annotated[UserModel, Depends(get_active_current_user)],
-    chat_uuid: UUID,
-    q: str = Query(..., min_length=1, max_length=100),
-    page: int = Query(1, ge=1),
-):
-    chat = await get_chat_or_404(db, chat_uuid)
-    ensure_user_in_chat_or_403(current_user, chat)
-
-    await add_query_to_history(r, current_user.uuid, q)
-
-    response = await es.search(
-        index=f'{ELASTIC_MESSAGES_INDEX_NAME}',
-        body={
-            "query": {
-                "bool": {
-                    "must": {
-                        "multi_match": {
-                            "query": q,
-                            "fields": [
-                                'text', 'text.autocomplete',
-                            ],
-                            "type": "best_fields",
-                            "fuzziness": "AUTO"
-                        }
-                    },
-                    "filter": {
-                        # Messages: only visible to participants
-                        "bool": {
-                            "must": [
-                                { "term": { "chat": chat_uuid } },
-                            ]
-                        }
-                    }
-                }
-            },
-            "from": (page - 1) * ELASTIC_PAGE_SIZE,
-            "size": ELASTIC_PAGE_SIZE
-        }
-    )
-
-    total, items = parse_elastic_response(response)
-    
-    return {
-        "total": total,
-        "page": page,
-        "page_size": ELASTIC_PAGE_SIZE,
-        "items": items
-    }
+# @router.get('/messages')
+# async def search_messages(
+#     db: Annotated[AsyncSession, Depends(get_db)],
+#     r: Annotated[Redis, Depends(get_redis)],
+#     es: Annotated[AsyncElasticsearch, Depends(get_es)],
+#     current_user: Annotated[UserModel, Depends(get_active_current_user)],
+#     chat_uuid: UUID,
+#     q: str = Query(..., min_length=1, max_length=100),
+#     page: int = Query(1, ge=1),
+# ):
+#     chat = await get_chat_or_404(db, chat_uuid)
+#     ensure_user_in_chat_or_403(current_user, chat)
+# 
+#     await add_query_to_history(r, current_user.uuid, q)
+# 
+#     response = await es.search(
+#         index=f'{ELASTIC_MESSAGES_INDEX_NAME}',
+#         body={
+#             "query": {
+#                 "bool": {
+#                     "must": {
+#                         "multi_match": {
+#                             "query": q,
+#                             "fields": [
+#                                 'text', 'text.autocomplete',
+#                             ],
+#                             "type": "best_fields",
+#                             "fuzziness": "AUTO"
+#                         }
+#                     },
+#                     "filter": {
+#                         # Messages: only visible to participants
+#                         "bool": {
+#                             "must": [
+#                                 { "term": { "chat": chat_uuid } },
+#                             ]
+#                         }
+#                     }
+#                 }
+#             },
+#             "from": (page - 1) * ELASTIC_PAGE_SIZE,
+#             "size": ELASTIC_PAGE_SIZE
+#         }
+#     )
+# 
+#     total, items = parse_elastic_response(response)
+#     
+#     return {
+#         "total": total,
+#         "page": page,
+#         "page_size": ELASTIC_PAGE_SIZE,
+#         "items": items
+#     }
 
 # last search queries
 @router.get('/history')

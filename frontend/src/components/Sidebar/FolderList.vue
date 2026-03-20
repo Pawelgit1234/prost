@@ -5,10 +5,12 @@ import { protectedTypes, useFolderStore, type FolderI } from '../../store/folder
 import { useChatStore, type ChatI } from '../../store/chats';
 import SearchSelectModal from '../common/SearchSelectModal.vue';
 import { useAuthStore, type UserConfigI } from '../../store/auth';
+import { useS3Store } from '../../store/s3';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
 const authStore = useAuthStore()
+const s3Store = useS3Store()
 
 const props = defineProps<{
     folders: FolderI[];
@@ -109,7 +111,7 @@ async function onSaveProfile(config: UserConfigI) {
 }
 
 async function onUploadAvatar(file: File) {
-  await authStore.saveAvatar(file)
+  await s3Store.saveUserAvatar(file)
   isProfileOpen.value = false
 }
 </script>

@@ -19,6 +19,15 @@ export interface ChatI {
   user_uuids: string[]
 }
 
+export interface GroupConfigI {
+  uuid: string
+  name: string
+  description: string | null
+  is_visible: boolean
+  is_open_for_messages: boolean
+  avatar_url: string | null
+}
+
 export const useChatStore = defineStore('chats', {
   state: () => ({
     chats: [] as ChatI[],
@@ -53,6 +62,11 @@ export const useChatStore = defineStore('chats', {
     changeLastMessage(chatUuid: string, lastMessage: string) {
       const chat = this.getChatByUuid(chatUuid)
       if (chat) chat.last_message = lastMessage
+    },
+    isNormal(chatUuid: string) {
+      const chat = this.getChatByUuid(chatUuid)
+      if (chat)
+        return chat.chat_type === 'normal'
     },
     async fetchChats() {
       try {
@@ -180,7 +194,30 @@ export const useChatStore = defineStore('chats', {
       } catch (error) {
         console.error("Error creating chat: ", error)
       }
-    }
+    },
+    async saveConfig(config: GroupConfigI) {
+      const chat = this.getChatByUuid(config.uuid)
+      if (!chat) return
+
+      try {
+        const response = await axiosInstance.put('/config/group', config, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (!response.data.success) {
+          console.error("Config could not be setted")
+          return
+        }
+
+        chat.name = config.name
+        chat.description = config.description ?? ''
+        chat.is_visible = config.is_visible
+        chat.is_open_for_messages = config.is_open_for_messages
+        chat.avatar = config.avatar_url ?? undefined
+      } catch (error) {
+        console.error("Error setting user config: ", error)
+      }
+    },
   },
   persist: true
 })

@@ -19,6 +19,7 @@ declare module 'vue' {
     ContinueWithGoogle: typeof import('./src/components/Auth/ContinueWithGoogle.vue')['default']
     FolderList: typeof import('./src/components/Sidebar/FolderList.vue')['default']
     FolderSelectorModal: typeof import('./src/components/common/FolderSelectorModal.vue')['default']
+    GroupConfigModal: typeof import('./src/components/common/GroupConfigModal.vue')['default']
     JoinRequestModal: typeof import('./src/components/common/JoinRequestModal.vue')['default']
     Message: typeof import('./src/components/Chat/Message.vue')['default']
     MessageList: typeof import('./src/components/Chat/MessageList.vue')['default']

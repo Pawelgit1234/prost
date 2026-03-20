@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useMessageStore, type MessageI } from '../../store/messages';
 import { useWebSocketStore } from '../../store/websocket';
 import { useAuthStore } from '../../store/auth';
 import Message from './Message.vue';
 import { useUserStore } from '../../store/users';
-import { useChatStore } from '../../store/chats';
+import { useChatStore, type GroupConfigI } from '../../store/chats';
+import { useS3Store } from '../../store/s3';
 
 const props = defineProps<{
   selectedChatUuid: string
@@ -17,6 +18,7 @@ const chatStore = useChatStore()
 const messageStore = useMessageStore()
 const userStore = useUserStore()
 const authStore = useAuthStore()
+const s3Store = useS3Store()
 
 watch(
   () => props.selectedChatUuid,
@@ -82,11 +84,45 @@ function openStatuses(msg: MessageI) {
   showStatuses.value = true
 }
 
+const chat = computed(() =>
+  chatStore.getChatByUuid(props.selectedChatUuid)
+)
+
+const isNormal = computed(() =>
+  chat.value?.chat_type === 'normal'
+)
+
+// Config
+const showGroupSettings = ref(false);
+async function onSaveGroup(config: GroupConfigI) {
+  await chatStore.saveConfig(config)
+  showGroupSettings.value = false
+}
+
+async function onUploadAvatar(file: File) {
+  if (!chat.value) return
+  await s3Store.saveGroupAvatar(file, chat.value)
+  showGroupSettings.value = false
+}
 </script>
 
 <template>
+  <div class="chat-window-header">
+    <b>{{ chat?.name }}</b>
+    <button v-if="!isNormal" @click="" class="icon-btn">
+      <i class="bi bi-qr-code"></i>
+    </button>
+    <button v-if="!isNormal" @click="" class="icon-btn">
+      <i class="bi bi-envelope"></i>
+    </button>
+    <button v-if="!isNormal" @click="showGroupSettings=true" class="icon-btn">
+      <i class="bi bi-list"></i>
+    </button>
+    <button @click="" class="icon-btn">
+      <i class="bi bi-download"></i>
+    </button>
+  </div>
   <div class="chat-window-inner">
-
     <div class="message-list" ref="messagesRef">
       <Message
         v-for="msg in messageStore.getMessagesByChat(selectedChatUuid)"
@@ -106,6 +142,14 @@ function openStatuses(msg: MessageI) {
       <button @click="sendMessage">Send</button>
     </div>
   </div>
+
+  <GroupConfigModal
+    :visible="showGroupSettings"
+    :group="chat"
+    @save="onSaveGroup"
+    @avatar="onUploadAvatar"
+    @close="showGroupSettings = false"
+  />
 
   <ReadStatusesModal
     :visible="showStatuses"
@@ -157,5 +201,9 @@ function openStatuses(msg: MessageI) {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+}
+
+.chat-window-header {
+  margin-left: 20px;
 }
 </style>

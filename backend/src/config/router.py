@@ -43,7 +43,7 @@ async def set_group_config(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     group_config: GroupConfigSchema
 ):
-    group = await get_chat_or_404(db, group_config.group_uuid)
+    group = await get_chat_or_404(db, group_config.uuid)
 
     await update_group_config_in_db(db, group, current_user, group_config)
     await update_group_config_in_elastic(es, group_config)

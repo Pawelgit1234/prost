@@ -171,22 +171,6 @@ export const useAuthStore = defineStore('auth', {
         console.error("Error setting user config: ", error)
       }
     },
-    async saveAvatar(file: File) {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const { data } = await axiosInstance.post(
-        '/config/avatar',
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        }
-      )
-
-      if (this.currentUser) {
-        this.currentUser.avatar = data.avatar_url
-      }
-    },
   },
   persist: {
     pick: ['currentUser', 'isLoggedIn'] // access_token only in memory

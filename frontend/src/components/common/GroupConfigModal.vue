@@ -1,22 +1,21 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { type UserConfigI, type UserI } from '../../store/auth'
+import type { ChatI, GroupConfigI } from '../../store/chats';
 
 const props = defineProps<{
-  visible: boolean,
-  user: UserI
+  visible: boolean
+  group: ChatI | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'save', userConfig: UserConfigI): void
+  (e: 'save', config: GroupConfigI): void
   (e: 'avatar', file: File): void
   (e: 'close'): void
 }>()
 
-const form = ref<UserConfigI>({
-  first_name: '',
-  last_name: '',
-  username: '',
+const form = ref<GroupConfigI>({
+  uuid: '',
+  name: '',
   description: null,
   is_visible: true,
   is_open_for_messages: true,
@@ -39,16 +38,15 @@ const previewUrl = computed(() => {
 watch(
   () => props.visible,
   (v) => {
-    if (!v || !props.user) return
+    if (!v || !props.group) return
 
     form.value = {
-      first_name: props.user.first_name,
-      last_name: props.user.last_name,
-      username: props.user.username,
-      description: props.user.description,
-      is_visible: props.user.is_visible,
-      is_open_for_messages: props.user.is_open_for_messages,
-      avatar_url: props.user.avatar,
+      uuid: props.group.uuid,
+      name: props.group.name,
+      description: props.group.description,
+      is_visible: props.group.is_visible,
+      is_open_for_messages: props.group.is_open_for_messages,
+      avatar_url: props.group.avatar ?? null,
     }
 
     avatarFile.value = null
@@ -65,7 +63,7 @@ function save() {
 <template>
   <div v-if="visible" class="modal-overlay" @click.self="emit('close')">
     <div class="modal-content">
-      <h3>Profile settings</h3>
+      <h3>Group settings</h3>
 
       <img
         v-if="previewUrl"
@@ -75,18 +73,8 @@ function save() {
 
       <div class="form-grid">
         <label>
-          First name
-          <input v-model="form.first_name" />
-        </label>
-
-        <label>
-          Last name
-          <input v-model="form.last_name" />
-        </label>
-
-        <label>
-          Username
-          <input v-model="form.username" />
+          Group name
+          <input v-model="form.name" />
         </label>
 
         <label>
@@ -95,7 +83,7 @@ function save() {
         </label>
 
         <label class="row">
-          Visible profile
+          Visible group
           <input type="checkbox" v-model="form.is_visible" />
         </label>
 
@@ -132,9 +120,11 @@ function save() {
 }
 
 .row {
+  margin-left: 5px;
   display: flex;
   align-items: center;
   gap: 8px;
+  line-height: 1;
 }
 
 .row input[type="checkbox"] {
