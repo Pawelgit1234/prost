@@ -20,6 +20,8 @@ declare module 'vue' {
     FolderList: typeof import('./src/components/Sidebar/FolderList.vue')['default']
     FolderSelectorModal: typeof import('./src/components/common/FolderSelectorModal.vue')['default']
     GroupConfigModal: typeof import('./src/components/common/GroupConfigModal.vue')['default']
+    InvitationCreateModal: typeof import('./src/components/common/InvitationCreateModal.vue')['default']
+    InvitationsModal: typeof import('./src/components/common/InvitationsModal.vue')['default']
     JoinRequestModal: typeof import('./src/components/common/JoinRequestModal.vue')['default']
     Message: typeof import('./src/components/Chat/Message.vue')['default']
     MessageList: typeof import('./src/components/Chat/MessageList.vue')['default']

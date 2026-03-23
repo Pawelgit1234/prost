@@ -6,11 +6,14 @@ import { useChatStore, type ChatI } from '../../store/chats';
 import SearchSelectModal from '../common/SearchSelectModal.vue';
 import { useAuthStore, type UserConfigI } from '../../store/auth';
 import { useS3Store } from '../../store/s3';
+import InvitationsModal from '../common/InvitationsModal.vue';
+import { useInvitationStore, type InvitationLifeTimeType } from '../../store/invitations';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
 const authStore = useAuthStore()
 const s3Store = useS3Store()
+const invitationStore = useInvitationStore()
 
 const props = defineProps<{
     folders: FolderI[];
@@ -114,10 +117,25 @@ async function onUploadAvatar(file: File) {
   await s3Store.saveUserAvatar(file)
   isProfileOpen.value = false
 }
+
+// Invitations
+const isInvitationModalOpen = ref(false)
+
+async function createInvitation(payload: {
+  lifetime: InvitationLifeTimeType
+  max_uses: number | null
+}) {
+  await invitationStore.createInvitation(
+    'user',
+    payload.lifetime,
+    payload.max_uses,
+    null
+  )
+}
 </script>
 
 <template>
-  <button @click="" class="icon-btn">
+  <button @click="isInvitationModalOpen = true" class="icon-btn">
     <i class="bi bi-qr-code"></i>
   </button>
 
@@ -135,6 +153,15 @@ async function onUploadAvatar(file: File) {
     @close="isProfileOpen = false"
     @save="onSaveProfile"
     @avatar="onUploadAvatar"
+  />
+
+  <InvitationsModal
+    :visible="isInvitationModalOpen"
+    title="Your invitations"
+    :invitations="invitationStore.userInvitations"
+    @close="isInvitationModalOpen = false"
+    @delete="invitationStore.deleteInvitation"
+    @create="createInvitation"
   />
 
   <draggable

@@ -24,7 +24,7 @@ export const useJoinRequestsStore = defineStore('join_requests', {
         }
 
       } catch (error) {
-        console.error("Error creating chat: ", error)
+        console.error("Error creating join request: ", error)
       }
     }
   },

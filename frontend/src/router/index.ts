@@ -4,8 +4,14 @@ import Register from '../views/Register.vue'
 import Messenger from '../views/Messenger.vue'
 import GoogleCallback from '../views/GoogleCallback.vue';
 import { useAuthStore } from '../store/auth';
+import { useInvitationStore } from '../store/invitations';
 
 const routes = [
+  {
+    path: "/invite/:uuid",
+    name: "Invite",
+    meta: { invite: true },
+  },
   {
     path: "/login",
     name: "Login",
@@ -42,8 +48,20 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+  const invitationStore = useInvitationStore()
+
+  if (to.meta.invite) {
+    const uuid = to.params.uuid as string
+
+    if (!authStore.isLoggedIn) {
+      return next('/login')
+    }
+
+    await invitationStore.join_via_invitation(uuid)
+    return next('/messenger')
+  }
 
   if (to.meta.requiresAuth && !authStore.isLoggedIn) {
     return next('/login')

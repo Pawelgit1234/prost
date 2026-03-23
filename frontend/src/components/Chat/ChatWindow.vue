@@ -7,6 +7,7 @@ import Message from './Message.vue';
 import { useUserStore } from '../../store/users';
 import { useChatStore, type GroupConfigI } from '../../store/chats';
 import { useS3Store } from '../../store/s3';
+import { useInvitationStore, type InvitationLifeTimeType } from '../../store/invitations';
 
 const props = defineProps<{
   selectedChatUuid: string
@@ -18,7 +19,16 @@ const chatStore = useChatStore()
 const messageStore = useMessageStore()
 const userStore = useUserStore()
 const authStore = useAuthStore()
+const invitationStore = useInvitationStore()
 const s3Store = useS3Store()
+
+const chat = computed(() =>
+  chatStore.getChatByUuid(props.selectedChatUuid)
+)
+
+const isNormal = computed(() =>
+  chat.value?.chat_type === 'normal'
+)
 
 watch(
   () => props.selectedChatUuid,
@@ -27,6 +37,9 @@ watch(
 
     await messageStore.fetchMessages(chatUuid)
     websocketStore.readMessage(chatUuid)
+
+    if (chat.value && isNormal)
+      await invitationStore.fetchGroupInvitations(chat.value?.uuid)
 
     scrollToBottom()
   },
@@ -84,14 +97,6 @@ function openStatuses(msg: MessageI) {
   showStatuses.value = true
 }
 
-const chat = computed(() =>
-  chatStore.getChatByUuid(props.selectedChatUuid)
-)
-
-const isNormal = computed(() =>
-  chat.value?.chat_type === 'normal'
-)
-
 // Config
 const showGroupSettings = ref(false);
 async function onSaveGroup(config: GroupConfigI) {
@@ -104,18 +109,35 @@ async function onUploadAvatar(file: File) {
   await s3Store.saveGroupAvatar(file, chat.value)
   showGroupSettings.value = false
 }
+
+// Invitations
+const isInvitationModalOpen = ref(false)
+
+async function createInvitation(payload: {
+  lifetime: InvitationLifeTimeType
+  max_uses: number | null
+}) {
+  if (!chat.value) return
+
+  await invitationStore.createInvitation(
+    'group',
+    payload.lifetime,
+    payload.max_uses,
+    chat.value?.uuid
+  )
+}
 </script>
 
 <template>
   <div class="chat-window-header">
     <b>{{ chat?.name }}</b>
-    <button v-if="!isNormal" @click="" class="icon-btn">
+    <button v-if="!isNormal" @click="isInvitationModalOpen = true" class="icon-btn">
       <i class="bi bi-qr-code"></i>
     </button>
     <button v-if="!isNormal" @click="" class="icon-btn">
       <i class="bi bi-envelope"></i>
     </button>
-    <button v-if="!isNormal" @click="showGroupSettings=true" class="icon-btn">
+    <button v-if="!isNormal" @click="showGroupSettings = true" class="icon-btn">
       <i class="bi bi-list"></i>
     </button>
     <button @click="" class="icon-btn">
@@ -149,6 +171,17 @@ async function onUploadAvatar(file: File) {
     @save="onSaveGroup"
     @avatar="onUploadAvatar"
     @close="showGroupSettings = false"
+  />
+
+  <InvitationsModal
+    :visible="isInvitationModalOpen"
+    title="Group invitations"
+    :invitations="chat?.uuid
+    ? invitationStore.getInvitationsByGroupUuid(chat.uuid)
+    : []"
+    @close="isInvitationModalOpen = false"
+    @delete="invitationStore.deleteInvitation"
+    @create="createInvitation"
   />
 
   <ReadStatusesModal

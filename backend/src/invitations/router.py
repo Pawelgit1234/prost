@@ -14,15 +14,15 @@ from src.settings import REDIS_CACHE_EXPIRE_SECONDS, REDIS_USER_INVITATION_KEY,\
 from src.database import get_db, get_redis, get_es
 from src.dependencies import get_active_current_user
 from src.utils import get_all_objects, get_object_or_404, wrap_list_response, \
-    invalidate_cache, serialize_model_list
+    invalidate_cache
 from src.auth.models import UserModel
 from src.chats.models import ChatModel
 from src.invitations.models import InvitationModel
 from src.invitations.enums import InvitationType
-from src.invitations.utils import get_invitation_or_404
+from src.invitations.utils import get_invitation_or_404, invitation_model_to_schema
 from src.invitations.services import create_invitation_in_db, get_all_group_invitations_list, \
     delete_invitation_in_db, use_invitation
-from src.invitations.schemas import InvitationSchema, CreateInvitationSchema
+from src.invitations.schemas import CreateInvitationSchema
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +40,21 @@ async def get_all_user_invitations(
 
     invitation_models = await get_all_objects(
         db, InvitationModel, InvitationModel.user_id == current_user.id,
+        options=[selectinload(InvitationModel.group)]
     )
-    invitations = serialize_model_list(invitation_models, InvitationSchema)
+    invitations = [
+        invitation_model_to_schema(i).model_dump(mode="json")
+        for i in invitation_models
+    ]
+
     data = wrap_list_response(invitations)
 
     await r.set(
         redis_key,
         json.dumps(data),
-        REDIS_CACHE_EXPIRE_SECONDS
+        ex=REDIS_CACHE_EXPIRE_SECONDS
     )
+
     return data
 
 @router.get('/group')
@@ -67,14 +73,19 @@ async def get_all_group_invitations(
         options=[selectinload(ChatModel.user_associations)]
     )
     invitation_models = await get_all_group_invitations_list(db, current_user, group)
-    invitations = serialize_model_list(invitation_models, InvitationSchema)
+    invitations = [
+        invitation_model_to_schema(i).model_dump(mode="json")
+        for i in invitation_models
+    ]
+
     data = wrap_list_response(invitations)
 
     await r.set(
         redis_key,
         json.dumps(data),
-        REDIS_CACHE_EXPIRE_SECONDS
+        ex=REDIS_CACHE_EXPIRE_SECONDS
     )
+
     return data
 
 @router.post('/')
@@ -88,11 +99,12 @@ async def create_invitation(
 
     if invitation.invitation_type == InvitationType.USER:
         await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)
-        logger.info(f'Invitation created by {current_user.username}')
     elif invitation.invitation_type == InvitationType.GROUP:
         await invalidate_cache(r, REDIS_GROUP_INVITATION_KEY, invitation_info.group_uuid)
+
+    logger.info(f'Invitation created by {current_user.username}')
     
-    return InvitationSchema.model_validate(invitation)
+    return invitation_model_to_schema(invitation, invitation_info.group_uuid)
 
 @router.delete('/')
 async def delete_invitation(
@@ -122,7 +134,7 @@ async def join_via_invitation(
     invitation_uuid: UUID
 ):
     invitation = await get_invitation_or_404(db, invitation_uuid)
-    await use_invitation(db, r, es, current_user, invitation)
+    await use_invitation(db, es, current_user, invitation)
 
     if invitation.invitation_type == InvitationType.USER:
         await invalidate_cache(r, REDIS_USER_INVITATION_KEY, current_user.uuid)

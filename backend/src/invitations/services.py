@@ -31,6 +31,7 @@ async def get_all_group_invitations_list(
 
     invitations = await get_all_objects(
         db, InvitationModel, InvitationModel.group_id == group.id,
+        options=[selectinload(InvitationModel.group)]
     )
 
     return invitations
@@ -86,7 +87,6 @@ async def delete_invitation_in_db(
 
 async def use_invitation(
     db: AsyncSession,
-    r: Redis,
     es: AsyncElasticsearch,
     user: UserModel,
     invitation: InvitationModel
@@ -111,7 +111,7 @@ async def use_invitation(
     # build in commit
     if invitation.invitation_type == InvitationType.USER:
         await db.refresh(user, ['chat_associations']) # loads chat_assoc
-        await create_chat_in_db(db, r, user, CreateChatSchema(
+        await create_chat_in_db(db, user, CreateChatSchema(
             chat_type=ChatType.NORMAL,
             name=invitation.user.username
         ))
@@ -123,4 +123,4 @@ async def use_invitation(
             .where(ChatModel.uuid == invitation.group.uuid)
         )
         group = result.scalar_one_or_none()
-        await add_user_to_group_in_db(db, r, es, group, user)
+        await add_user_to_group_in_db(db, es, group, user)

@@ -18,8 +18,11 @@ class CreateInvitationSchema(BaseModel):
         return self
 
 class InvitationSchema(BaseModel):
+    invitation_type: InvitationType
     lifetime: InvitationLifetime
     max_uses: int | None = Field(default=None, gt=0) # greater than 0 or null
-    uuid: UUID # on fronted will be generate link and qr code
+    uuid: UUID
+
+    group_uuid: UUID | None = Field(default=None) # only for groups
 
     model_config = ConfigDict(from_attributes=True)
