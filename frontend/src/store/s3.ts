@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import axiosInstance from '../api/axios'
 import { useAuthStore } from './auth'
-import { useChatStore, type ChatI } from './chats'
+import { type ChatI } from './chats'
 
 export const useS3Store = defineStore('s3', {
   state: () => ({}),

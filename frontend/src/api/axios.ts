@@ -12,12 +12,12 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const userStore = useAuthStore();
+        const authStore = useAuthStore();
         const originalRequest = error.config;
 
         // invalid refresh token
         if (error.response?.status === 401 && originalRequest.url === "/auth/refresh/") {
-            await userStore.logout();
+            await authStore.logout();
             router.push(router.currentRoute.value.fullPath);
         }
     
@@ -25,10 +25,10 @@ axiosInstance.interceptors.response.use(
         else if (error.response?.status === 401 && originalRequest.url !== "/auth/refresh/") {
             try {
                 const { data } = await axiosInstance.post("/auth/refresh/", {}, { withCredentials: true });
-                userStore.accessToken = data.access_token;
+                authStore.accessToken = data.access_token;
                 return axiosInstance(originalRequest);
             } catch (err) {
-                await userStore.logout();
+                await authStore.logout();
                 router.push(router.currentRoute.value.fullPath);
             }
         }
@@ -37,14 +37,14 @@ axiosInstance.interceptors.response.use(
 );
 
 axiosInstance.interceptors.request.use((config) => {
-  const userStore = useAuthStore();
+  const authStore = useAuthStore();
 
   if (config.url === "/auth/refresh/") {
     // for refresh token
     config.withCredentials = true;
-  } else if (userStore.accessToken) {
+  } else if (authStore.accessToken) {
     // for other only access token
-    config.headers.Authorization = `Bearer ${userStore.accessToken}`;
+    config.headers.Authorization = `Bearer ${authStore.accessToken}`;
     config.withCredentials = false;
   }
 

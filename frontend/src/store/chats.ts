@@ -168,6 +168,7 @@ export const useChatStore = defineStore('chats', {
     },
     async createChat(username: string) {
       const authStore = useAuthStore()
+      const websocketStore = useWebSocketStore()
       const userStore = useUserStore()
       const folderStore = useFolderStore()
 
@@ -187,12 +188,32 @@ export const useChatStore = defineStore('chats', {
         await userStore.fetchUsers()
         await folderStore.fetchFolders()
 
-        const websocketStore = useWebSocketStore()
         websocketStore.joinChat(chat.uuid)
 
         return chat
       } catch (error) {
         console.error("Error creating chat: ", error)
+      }
+    },
+    async createGroup(groupName: string, description: string) {
+      const folderStore = useFolderStore()
+      const websocketStore = useWebSocketStore()
+
+      try {
+        const payload = { chat_type: 'group', name: groupName, group_description: description };
+        const response = await axiosInstance.post('/chats/', payload, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const chat = response.data as ChatI
+        this.chats.push(chat)
+
+        await folderStore.fetchFolders()
+
+        websocketStore.joinChat(chat.uuid)
+
+        return chat
+      } catch (error) {
+        console.error("Error creating group: ", error)
       }
     },
     async saveConfig(config: GroupConfigI) {

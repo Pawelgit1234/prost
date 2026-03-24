@@ -4,6 +4,10 @@ import { useFolderStore } from './folders'
 import { useChatStore } from './chats'
 import { useMessageStore } from './messages'
 import { useUserStore } from './users'
+import { useInvitationStore } from './invitations'
+import { useJoinRequestsStore } from './join_requests'
+import { useSearchStore } from './search'
+import { useWebSocketStore } from './websocket'
 
 export interface UserI {
   first_name: string
@@ -58,27 +62,31 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     async logout() {
-      await axiosInstance.post('/auth/logout'); // cleans refresh token
+      await axiosInstance.post('/auth/logout', {}, {withCredentials: true}); // cleans refresh token
 
       // cleans other data
       this.accessToken = null;
       this.currentUser = null;
-
-      const folderStore = useFolderStore();
-      folderStore.$reset();
-
-      const chatStore = useChatStore();
-      chatStore.$reset();
-
-      const messageStore = useMessageStore();
-      messageStore.$reset();
-
-      const userStore = useUserStore();
-      userStore.$reset();
-
       this.isLoggedIn = false;
-    },
 
+      const folderStore = useFolderStore()
+      const chatStore = useChatStore()
+      const messageStore = useMessageStore()
+      const userStore = useUserStore()
+      const invitationStore = useInvitationStore()
+      const joinRequestStore = useJoinRequestsStore()
+      const searchStore = useSearchStore()
+      const websocketStore = useWebSocketStore()
+
+      folderStore.$reset();
+      chatStore.$reset();
+      messageStore.$reset();
+      userStore.$reset();
+      invitationStore.$reset();
+      joinRequestStore.$reset();
+      searchStore.$reset();
+      websocketStore.$reset();
+    },
     async login(emailOrUsername: string, password: string) {
       try {
         const formData = new FormData();

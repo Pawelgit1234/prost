@@ -191,7 +191,7 @@ async def get_refresh_token(
 
 @router.post('/logout')
 async def logout(reponse: Response):
-    reponse.delete_cookie('refresh_token')
+    reponse.delete_cookie('refresh_token') # it should work, but it does not
     return {'success': True}
 
 @router.get('/')

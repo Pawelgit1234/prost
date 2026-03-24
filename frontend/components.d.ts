@@ -36,5 +36,6 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SearchInput: typeof import('./src/components/common/SearchInput.vue')['default']
     SearchSelectModal: typeof import('./src/components/common/SearchSelectModal.vue')['default']
+    TwoFieldsModal: typeof import('./src/components/common/TwoFieldsModal.vue')['default']
   }
 }

@@ -4,7 +4,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
 from src.chats.enums import ChatType
-from src.messages.schemas import SendMessageSchema
 
 class CreateChatSchema(BaseModel):
     chat_type: ChatType # says what type of chat it is: group or normal chat

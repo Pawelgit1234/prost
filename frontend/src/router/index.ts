@@ -41,6 +41,13 @@ const routes = [
     path: "/",
     redirect: "/login",
   },
+  {
+  path: '/:catchAll(.*)', // catches all non existing routes
+    redirect: (to) => {
+      const authStore = useAuthStore()
+      return authStore.isLoggedIn ? '/messenger' : '/login'
+    }
+  }
 ];
 
 const router = createRouter({

@@ -137,6 +137,20 @@ async function createInvitation(payload: {
 
 // Join Requests
 const isJoinRequestsOpen = ref(false)
+
+// Create Group
+const isGroupCreateModalOpen = ref(false)
+
+async function createGroup(groupName: string, description: string) {
+  await chatStore.createGroup(groupName, description)
+  isGroupCreateModalOpen.value = false
+}
+
+// Logout
+async function handleLogout() {
+  await authStore.logout()
+  //window.location.replace('/login/')
+}
 </script>
 
 <template>
@@ -198,9 +212,27 @@ const isJoinRequestsOpen = ref(false)
     </template>
   </draggable>
 
-  <button @click="isCreateModalOpen = true" class="add-folder-btn">
+  <button @click="isCreateModalOpen = true" class="icon-btn">
     <i class="bi bi-plus-circle"></i>
   </button>
+
+  <button @click="isGroupCreateModalOpen = true" class="icon-btn">
+    <i class="bi bi-people"></i>
+  </button>
+
+  <button @click="handleLogout" class="icon-btn">
+    <i class="bi bi-box-arrow-right"></i>
+  </button>
+
+  <!-- Group Creating Modal -->
+  <TwoFieldsModal
+    :visible="isGroupCreateModalOpen"
+    title="Create Group"
+    placeholder1="Group name"
+    placeholder2="Description"
+    @close="isGroupCreateModalOpen = false"
+    @submit="createGroup"
+  />
 
   <!-- Creating Modal -->
   <ModalTextInput

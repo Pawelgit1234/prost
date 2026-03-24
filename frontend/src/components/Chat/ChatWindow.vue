@@ -149,9 +149,6 @@ const isJoinRequestsOpen = ref(false)
     <button v-if="!isNormal" @click="showGroupSettings = true" class="icon-btn">
       <i class="bi bi-list"></i>
     </button>
-    <button @click="" class="icon-btn">
-      <i class="bi bi-download"></i>
-    </button>
   </div>
   <div class="chat-window-inner">
     <div class="message-list" ref="messagesRef">
