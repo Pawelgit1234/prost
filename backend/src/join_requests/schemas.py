@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.join_requests.enums import JoinRequestType
 
@@ -12,5 +12,11 @@ class CreateJoinRequestSchema(BaseModel):
 class JoinRequestSchema(BaseModel):
     uuid: UUID
     sender_user_uuid: UUID
+    sender_username: str
+    sender_first_name: str
+    sender_last_name: str
+    avatar: str | None = Field(default=None)
+    
+    group_uuid: UUID | None = Field(default=None)
 
     model_config = ConfigDict(from_attributes=True)

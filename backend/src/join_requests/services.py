@@ -79,7 +79,6 @@ async def create_join_request_in_db(
 
 async def approve_join_request_in_db(
     db: AsyncSession,
-    r: Redis,
     es: AsyncElasticsearch,
     user: UserModel,
     join_request: JoinRequestModel,
@@ -91,13 +90,13 @@ async def approve_join_request_in_db(
                 detail='You are not authorized to approve this join request'
             )
 
-        await create_chat_in_db(db, r, user, CreateChatSchema(
+        await create_chat_in_db(db, user, CreateChatSchema(
             chat_type=ChatType.NORMAL,
             name=join_request.sender_user.username
         ))
     elif join_request.join_request_type == JoinRequestType.GROUP:
         # already checks if receiver in the group
-        await user_add_user_to_group_in_db(db, r, es, join_request.group, join_request.sender_user, user)
+        await user_add_user_to_group_in_db(db, es, join_request.group, join_request.sender_user, user)
     
     await db.delete(join_request)
     await db.commit()

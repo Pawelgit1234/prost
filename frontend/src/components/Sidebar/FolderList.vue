@@ -8,12 +8,14 @@ import { useAuthStore, type UserConfigI } from '../../store/auth';
 import { useS3Store } from '../../store/s3';
 import InvitationsModal from '../common/InvitationsModal.vue';
 import { useInvitationStore, type InvitationLifeTimeType } from '../../store/invitations';
+import { useJoinRequestsStore } from '../../store/join_requests';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
 const authStore = useAuthStore()
 const s3Store = useS3Store()
 const invitationStore = useInvitationStore()
+const joinRequestsStore = useJoinRequestsStore()
 
 const props = defineProps<{
     folders: FolderI[];
@@ -132,6 +134,9 @@ async function createInvitation(payload: {
     null
   )
 }
+
+// Join Requests
+const isJoinRequestsOpen = ref(false)
 </script>
 
 <template>
@@ -139,7 +144,7 @@ async function createInvitation(payload: {
     <i class="bi bi-qr-code"></i>
   </button>
 
-  <button @click="" class="icon-btn">
+  <button @click="isJoinRequestsOpen = true" class="icon-btn">
     <i class="bi bi-envelope"></i>
   </button>
 
@@ -162,6 +167,15 @@ async function createInvitation(payload: {
     @close="isInvitationModalOpen = false"
     @delete="invitationStore.deleteInvitation"
     @create="createInvitation"
+  />
+
+  <JoinRequestsModal
+    :visible="isJoinRequestsOpen"
+    title="Join requests"
+    :requests="joinRequestsStore.userjoinRequests"
+    @close="isJoinRequestsOpen = false"
+    @approve="joinRequestsStore.approveJoinRequest"
+    @reject="joinRequestsStore.rejectJoinRequest"
   />
 
   <draggable

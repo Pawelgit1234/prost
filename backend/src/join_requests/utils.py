@@ -10,15 +10,17 @@ from src.chats.models import ChatModel
 from src.join_requests.schemas import JoinRequestSchema
 from src.join_requests.models import JoinRequestModel
 
-
 def serialize_join_request_model_list(models: Iterable[Any]) -> list[dict]:
     result = []
     for obj in models:
         result.append(json.loads(JoinRequestSchema(
             uuid=obj.uuid,
-            join_request_type=obj.join_request_type,
-            target_uuid=obj.group.uuid if obj.group else obj.receiver_user.uuid,
             sender_user_uuid=obj.sender_user.uuid,
+            sender_username=obj.sender_user.username,
+            sender_first_name=obj.sender_user.first_name,
+            sender_last_name=obj.sender_user.last_name,
+            avatar=obj.sender_user.avatar,
+            group_uuid=obj.group.uuid if obj.group else None
         ).model_dump_json()))
     return result
 
@@ -31,3 +33,4 @@ async def get_join_request_or_404(db: AsyncSession, join_request_uuid: UUID) -> 
             selectinload(JoinRequestModel.group).selectinload(ChatModel.user_associations)
         ]
     )
+    return join_request

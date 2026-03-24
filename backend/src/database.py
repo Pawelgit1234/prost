@@ -47,7 +47,7 @@ async def get_es():
         pass
 
 # workaround
-async def wait_for_elasticsearch(es: AsyncElasticsearch, retries: int = 30, delay: float = 1.0):
+async def wait_for_elasticsearch(es: AsyncElasticsearch, retries: int = 50, delay: float = 1.0):
     for attempt in range(retries):
         try:
             if await es.ping():

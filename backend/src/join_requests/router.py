@@ -19,7 +19,7 @@ from src.chats.models import ChatModel
 from src.join_requests.models import JoinRequestModel
 from src.join_requests.enums import JoinRequestType
 from src.join_requests.utils import serialize_join_request_model_list, get_join_request_or_404
-from src.join_requests.schemas import CreateJoinRequestSchema, JoinRequestSchema
+from src.join_requests.schemas import CreateJoinRequestSchema
 from src.join_requests.services import create_join_request_in_db, get_all_group_join_requests_list, \
     approve_join_request_in_db, reject_join_request_in_db
 
@@ -84,7 +84,7 @@ async def create_join_request(
     current_user: Annotated[UserModel, Depends(get_active_current_user)],
     join_request_info: CreateJoinRequestSchema
 ):
-    join_request = await create_join_request_in_db(db, current_user, join_request_info)
+    await create_join_request_in_db(db, current_user, join_request_info)
     
     if join_request_info.join_request_type == JoinRequestType.USER:
         await invalidate_cache(r, REDIS_USER_JOIN_REQUESTS_KEY, join_request_info.target_uuid)
@@ -102,7 +102,6 @@ async def create_join_request(
 
     return {"success": True}
 
-
 @router.delete('/approve')
 async def approve_join_request(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -114,7 +113,7 @@ async def approve_join_request(
     join_request = await get_join_request_or_404(db, join_request_uuid)
     sender_username = join_request.sender_user.username
     
-    await approve_join_request_in_db(db, r, es, current_user, join_request)
+    await approve_join_request_in_db(db, es, current_user, join_request)
 
     if join_request.join_request_type == JoinRequestType.USER:
         await invalidate_cache(r, REDIS_USER_JOIN_REQUESTS_KEY, current_user.uuid)

@@ -10,12 +10,14 @@ import { useUserStore } from '../store/users';
 import { useSearchStore } from '../store/search';
 import { useWebSocketStore } from '../store/websocket';
 import { useInvitationStore } from '../store/invitations';
+import { useJoinRequestsStore } from '../store/join_requests';
 
 const folderStore = useFolderStore()
 const chatStore = useChatStore()
 const userStore = useUserStore()
 const searchStore = useSearchStore()
 const invitationStore = useInvitationStore()
+const joinRequestStore = useJoinRequestsStore()
 const ws = useWebSocketStore()
 
 onMounted(async () => {
@@ -24,7 +26,8 @@ onMounted(async () => {
     chatStore.fetchChats(),
     userStore.fetchUsers(),
     searchStore.loadHistory(),
-    invitationStore.fetchUserInvitations()
+    invitationStore.fetchUserInvitations(),
+    joinRequestStore.fetchUserJoinRequests()
   ])
   ws.connect()
 })

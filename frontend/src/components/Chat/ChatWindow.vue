@@ -8,6 +8,7 @@ import { useUserStore } from '../../store/users';
 import { useChatStore, type GroupConfigI } from '../../store/chats';
 import { useS3Store } from '../../store/s3';
 import { useInvitationStore, type InvitationLifeTimeType } from '../../store/invitations';
+import { useJoinRequestsStore } from '../../store/join_requests';
 
 const props = defineProps<{
   selectedChatUuid: string
@@ -20,6 +21,7 @@ const messageStore = useMessageStore()
 const userStore = useUserStore()
 const authStore = useAuthStore()
 const invitationStore = useInvitationStore()
+const joinRequestsStore = useJoinRequestsStore()
 const s3Store = useS3Store()
 
 const chat = computed(() =>
@@ -35,13 +37,17 @@ watch(
   async (chatUuid) => {
     if (!chatUuid) return
 
+    scrollToBottom() // scrolls to the latest messages
+
     await messageStore.fetchMessages(chatUuid)
     websocketStore.readMessage(chatUuid)
 
-    if (chat.value && isNormal)
-      await invitationStore.fetchGroupInvitations(chat.value?.uuid)
+    scrollToBottom() // if new messages, scolles again
 
-    scrollToBottom()
+    if (chat.value && isNormal) {
+      await invitationStore.fetchGroupInvitations(chat.value?.uuid)
+      await joinRequestsStore.fetchGroupJoinRequests(chat.value?.uuid)
+    }
   },
   { immediate: true }
 )
@@ -126,6 +132,9 @@ async function createInvitation(payload: {
     chat.value?.uuid
   )
 }
+
+// Join Requests
+const isJoinRequestsOpen = ref(false)
 </script>
 
 <template>
@@ -134,7 +143,7 @@ async function createInvitation(payload: {
     <button v-if="!isNormal" @click="isInvitationModalOpen = true" class="icon-btn">
       <i class="bi bi-qr-code"></i>
     </button>
-    <button v-if="!isNormal" @click="" class="icon-btn">
+    <button v-if="!isNormal" @click="isJoinRequestsOpen = true" class="icon-btn">
       <i class="bi bi-envelope"></i>
     </button>
     <button v-if="!isNormal" @click="showGroupSettings = true" class="icon-btn">
@@ -182,6 +191,17 @@ async function createInvitation(payload: {
     @close="isInvitationModalOpen = false"
     @delete="invitationStore.deleteInvitation"
     @create="createInvitation"
+  />
+
+  <JoinRequestsModal
+    :visible="isJoinRequestsOpen"
+    title="Join requests"
+    :requests="chat?.uuid
+    ? joinRequestsStore.getJoinRequestsByGroupUuid(chat.uuid)
+    : []"
+    @close="isJoinRequestsOpen = false"
+    @approve="joinRequestsStore.approveJoinRequest"
+    @reject="joinRequestsStore.rejectJoinRequest"
   />
 
   <ReadStatusesModal

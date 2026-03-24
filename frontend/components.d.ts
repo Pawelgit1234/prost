@@ -23,6 +23,7 @@ declare module 'vue' {
     InvitationCreateModal: typeof import('./src/components/common/InvitationCreateModal.vue')['default']
     InvitationsModal: typeof import('./src/components/common/InvitationsModal.vue')['default']
     JoinRequestModal: typeof import('./src/components/common/JoinRequestModal.vue')['default']
+    JoinRequestsModal: typeof import('./src/components/common/JoinRequestsModal.vue')['default']
     Message: typeof import('./src/components/Chat/Message.vue')['default']
     MessageList: typeof import('./src/components/Chat/MessageList.vue')['default']
     Messenger: typeof import('./src/components/Messenger.vue')['default']
