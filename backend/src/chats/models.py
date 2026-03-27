@@ -37,7 +37,11 @@ class ChatModel(Base, TimestampMixin):
     is_visible: Mapped[bool] = mapped_column(default=False, nullable=True) # search
     avatar: Mapped[str] = mapped_column(nullable=True) # avatar will be set later in settings
 
-    messages: Mapped[list["MessageModel"]] = relationship(back_populates="chat")
+    messages: Mapped[list["MessageModel"]] = relationship(
+        back_populates="chat",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
     received_join_requests: Mapped[list["JoinRequestModel"]] = relationship(
         back_populates="group", cascade='all, delete-orphan'
     )

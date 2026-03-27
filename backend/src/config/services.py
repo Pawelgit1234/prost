@@ -22,14 +22,15 @@ async def update_user_config_in_db(
     user.description = user_config.description
     user.is_visible = user_config.is_visible
     user.is_open_for_messages = user_config.is_open_for_messages
-    user.avatar = user_config.avatar_url
+    # not avatar
     await db.commit()
+
 
 async def update_user_config_in_elastic(
     es: AsyncElasticsearch,
     user_config: UserConfigSchema,
     old_username: str,
-    user_uuid: UUID
+    user_uuid: UUID,
 ) -> None:
     await es.update(
         index=ELASTIC_USERS_INDEX_NAME,
@@ -41,8 +42,8 @@ async def update_user_config_in_elastic(
             "description": user_config.description,
             "is_visible": user_config.is_visible,
             "is_open_for_messages": user_config.is_open_for_messages,
-            "avatar": user_config.avatar_url
-        }
+            # not avatar
+        },
     )
 
     if old_username == user_config.username:
@@ -90,7 +91,7 @@ async def update_group_config_in_db(
     group.description = group_config.description
     group.is_open_for_messages = group_config.is_open_for_messages
     group.is_visible = group_config.is_visible
-    group.avatar = group_config.avatar_url
+    # not avatar
     await db.commit()
 
 async def update_group_config_in_elastic(
@@ -105,6 +106,6 @@ async def update_group_config_in_elastic(
             "description": group_config.description,
             "is_open_for_messages": group_config.is_open_for_messages,
             "is_visible": group_config.is_visible,
-            "avatar": group_config.avatar_url
+            # not avatar
         }
     )

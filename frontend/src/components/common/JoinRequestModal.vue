@@ -78,7 +78,7 @@ const avatarUrl = computed(() => {
       <div class="modal-info">
         <!-- AVATAR -->
         <div class="avatar">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" />
+          <img class="preview-avatar" v-if="avatarUrl" :src="avatarUrl" alt="avatar" />
           <div v-else class="avatar-fallback">
             {{ avatarFallback }}
           </div>
@@ -127,3 +127,13 @@ const avatarUrl = computed(() => {
     </div>
   </div>
 </template>
+
+<style>
+.preview-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+</style>

@@ -16,6 +16,7 @@ def group_and_message_model_to_schema(
     chat: ChatModel,
     last_message: str
 ) -> ChatSchema:
+    print(chat.avatar)
     return ChatSchema(
         uuid=chat.uuid,
         chat_type=chat.chat_type,

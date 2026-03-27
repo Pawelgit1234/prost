@@ -2,12 +2,28 @@
 import { computed } from 'vue'
 import { useAuthStore } from '../../store/auth'
 import type { MessageI } from '../../store/messages'
+import { useUserStore } from '../../store/users';
 
 const props = defineProps<{
   message: MessageI
 }>()
 
 const authStore = useAuthStore()
+const userStore = useUserStore()
+
+const avatarUrl = computed(() => {
+  const user = userStore.users?.find(
+    u => u.uuid === props.message.user_uuid
+  )
+  return user?.avatar || null
+})
+
+const avatarFallback = computed(() => {
+  const user = userStore.users?.find(
+    u => u.uuid === props.message.user_uuid
+  )
+  return user?.username?.[0]?.toUpperCase() || '?'
+})
 
 // Check if message belongs to current user
 const isMine = computed(() => {
@@ -48,7 +64,20 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div :id="`message-${message.uuid}`" class="message-row" :class="{ mine: isMine }">
+  <div
+    :id="`message-${message.uuid}`"
+    class="message-row"
+    :class="{ mine: isMine }"
+  >
+    <!-- AVATAR -->
+    <div v-if="!isMine" class="avatar">
+      <img v-if="avatarUrl" :src="avatarUrl" />
+      <div v-else class="avatar-fallback">
+        {{ avatarFallback }}
+      </div>
+    </div>
+
+    <!-- MESSAGE -->
     <div class="message-bubble" :class="{ mine: isMine }">
       <div class="content">
         {{ message.content }}
@@ -101,5 +130,31 @@ const formattedTime = computed(() => {
   opacity: 0.7;
   margin-top: 4px;
   align-self: flex-end;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #ccc;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
 }
 </style>

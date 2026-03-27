@@ -244,7 +244,24 @@ async function selectChatOrChooseMessage(item: SearchItem) {
       class="chat-item"
       @click.left.prevent="handleJoinRequest(item)"
     >
-      <div class="chat-name">{{ item.name || item.username }}</div>
+      <div class="chat-row">
+        <!-- AVATAR -->
+        <img
+          v-if="item.avatar"
+          :src="item.avatar"
+          class="chat-avatar"
+        />
+        <div v-else class="chat-avatar fallback">
+          {{ (item.name || item.username)?.[0]?.toUpperCase() || '?' }}
+        </div>
+
+        <!-- CONTENT -->
+        <div class="chat-content">
+          <div class="chat-name">
+            {{ item.name || item.username }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <h5>Local results</h5>
@@ -254,23 +271,41 @@ async function selectChatOrChooseMessage(item: SearchItem) {
       :class="['chat-item', { selected: item.uuid === selectedChatUuid }]"
       @click.left.prevent="selectChatOrChooseMessage(item)"
     >
-      <div v-if="item.type === 'messages'">
-        <div class="chat-name">
-          {{ item.content }}
+      <div class="chat-row">
+        <!-- AVATAR -->
+        <img
+          v-if="item.avatar"
+          :src="item.avatar"
+          class="chat-avatar"
+        />
+        <div v-else class="chat-avatar fallback">
+          {{
+            (item.name ||
+            item.username ||
+            item.content)?.[0]?.toUpperCase() || '?'
+          }}
         </div>
-      </div>
-      <div
-        v-else-if="item.chat_type === 'normal'" class="chat-name">
-        {{ userStore.getUserFromOneOfTheMembers(item.members || [])?.username }}
-      </div>
-      <div
-        v-else-if="item.chat_type === 'group'" class="chat-name">
-        {{ item.name }}
+
+        <!-- CONTENT -->
+        <div class="chat-content">
+          <div v-if="item.type === 'messages'" class="chat-name">
+            {{ item.content }}
+          </div>
+
+          <div v-else-if="item.chat_type === 'normal'" class="chat-name">
+            {{ userStore.getUserFromOneOfTheMembers(item.members || [])?.username }}
+          </div>
+
+          <div v-else-if="item.chat_type === 'group'" class="chat-name">
+            {{ item.name }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="chat-list" v-if="!isSearchActive">
+    <!-- PINNED -->
     <div
       v-for="chat in pinned_chats"
       :key="chat.uuid"
@@ -282,10 +317,27 @@ async function selectChatOrChooseMessage(item: SearchItem) {
       @click.right.prevent="openMenu($event, chat)"
     >
       <i class="bi bi-pin-angle-fill pin-icon"></i>
-      <div class="chat-name">{{ chat.name }}</div>
-      <div class="chat-last-message">{{ chat.last_message }}</div>
+
+      <div class="chat-row">
+        <!-- AVATAR -->
+        <img
+          v-if="chat.avatar"
+          :src="chat.avatar"
+          class="chat-avatar"
+        />
+        <div v-else class="chat-avatar fallback">
+          {{ chat.name?.[0]?.toUpperCase() || '?' }}
+        </div>
+
+        <!-- CONTENT -->
+        <div class="chat-content">
+          <div class="chat-name">{{ chat.name }}</div>
+          <div class="chat-last-message">{{ chat.last_message }}</div>
+        </div>
+      </div>
     </div>
 
+    <!-- UNPINNED -->
     <div
       v-for="chat in unpinned_chats"
       :key="chat.uuid"
@@ -296,10 +348,26 @@ async function selectChatOrChooseMessage(item: SearchItem) {
       @click.left.prevent="selectChat(chat.uuid)"
       @click.right.prevent="openMenu($event, chat)"
     >
-      <div class="chat-name">{{ chat.name }}</div>
-      <div class="chat-last-message">{{ chat.last_message }}</div>
+      <div class="chat-row">
+        <!-- AVATAR -->
+        <img
+          v-if="chat.avatar"
+          :src="chat.avatar"
+          class="chat-avatar"
+        />
+        <div v-else class="chat-avatar fallback">
+          {{ chat.name?.[0]?.toUpperCase() || '?' }}
+        </div>
+
+        <!-- CONTENT -->
+        <div class="chat-content">
+          <div class="chat-name">{{ chat.name }}</div>
+          <div class="chat-last-message">{{ chat.last_message }}</div>
+        </div>
+      </div>
     </div>
   </div>
+
 
   <!-- Context Menu -->
   <ContextMenu
@@ -431,5 +499,33 @@ async function selectChatOrChooseMessage(item: SearchItem) {
 .new-chat {
   background-color: #d3daff;
 }
-</style>
 
+.chat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.chat-avatar.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ccc;
+  color: white;
+  font-weight: bold;
+}
+
+.chat-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+</style>

@@ -102,12 +102,11 @@ export const useChatStore = defineStore('chats', {
 
         if (response.data.success) {
           this.chats = this.chats.filter((chat) => chat.uuid !== chatUuid)
+          const websocketStore = useWebSocketStore()
+          websocketStore.quitChat(chatUuid)
         } else {
           console.error("Chat was not deleted")
         }
-
-        const websocketStore = useWebSocketStore()
-        websocketStore.quitChat(chatUuid)
       } catch (error) {
         console.error("Error deleting chat:", error)
       }
