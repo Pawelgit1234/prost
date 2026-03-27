@@ -7,6 +7,8 @@ https://github.com/notarious2/fastapi-chat/
 > Overengineered in some parts and built mainly for learning/testing
 > purposes.
 
+![img](img/image.png)
+
 ------------------------------------------------------------------------
 
 ## ✨ Features
