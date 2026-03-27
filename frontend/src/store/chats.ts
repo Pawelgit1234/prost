@@ -70,7 +70,7 @@ export const useChatStore = defineStore('chats', {
     },
     async fetchChats() {
       try {
-        const response = await axiosInstance.get("/chats")
+        const response = await axiosInstance.get("/chats/")
         const data = response.data // total, items->chats
         this.chats = data.items as ChatI[]
       } catch (error) {

@@ -90,6 +90,17 @@ services:
     volumes:
       - minio_data:/data
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "3421:80"
+    depends_on:
+      - backend
+
 volumes:
   pgdata:
   pgadmin_data:

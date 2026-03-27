@@ -1,7 +1,7 @@
 import os
 
-HOST = 'http://127.0.0.1:8000'
-FRONTEND_HOST = 'http://localhost:5173'
+HOST = 'http://localhost:3421/api'
+FRONTEND_HOST = 'http://localhost:3421'
 HTTPS = False
 
 DATABASE_URL = (

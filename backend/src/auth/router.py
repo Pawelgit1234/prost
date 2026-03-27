@@ -108,6 +108,7 @@ async def login(
     db: Annotated[AsyncSession, Depends(get_db)],
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
+    print(form_data.username, form_data.password)
     # username can be also email
     user = await authenticate_user(db, form_data.username, form_data.password)
 
